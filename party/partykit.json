@@ -1,0 +1,6 @@
+{
+  "name": "stage-link-party",
+  "main": "src/signaling.ts",
+  "compatibilityDate": "2024-09-01",
+  "port": 1999
+}
