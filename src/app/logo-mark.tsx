@@ -37,6 +37,7 @@ export function LogoMark({
       </span>
       <div
         style={{
+          display: "flex",
           position: "absolute",
           bottom: Math.floor(size * 0.1),
           right: Math.floor(size * 0.1),

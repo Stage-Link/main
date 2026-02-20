@@ -29,10 +29,13 @@ const description =
 export const metadata: Metadata = {
   title,
   description,
-  icons: [
-    { url: "/icon", sizes: "128x128", type: "image/png" },
-    { url: "/icon-64", sizes: "64x64", type: "image/png" },
-  ],
+  icons: {
+    icon: [
+      { url: "/icon", sizes: "128x128", type: "image/png" },
+      { url: "/icon-64", sizes: "64x64", type: "image/png" },
+    ],
+    apple: "/apple-icon",
+  },
   openGraph: {
     title,
     description,

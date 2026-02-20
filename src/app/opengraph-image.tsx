@@ -25,6 +25,7 @@ export default async function OpenGraphImage() {
       >
         <div
           style={{
+            display: "flex",
             width: 120,
             height: 120,
             marginBottom: 48,
