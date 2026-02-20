@@ -1,6 +1,22 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+const STUN_ONLY = {
+  iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }],
+};
+
 export async function GET() {
+  const { has, orgId } = await auth();
+
+  if (!orgId) {
+    return NextResponse.json({ error: "No organization" }, { status: 403 });
+  }
+
+  const canUseTurn = has({ feature: "turn_relay" });
+  if (!canUseTurn) {
+    return NextResponse.json(STUN_ONLY);
+  }
+
   const keyId = process.env.TURN_KEY_ID;
   const apiToken = process.env.TURN_KEY_API_TOKEN;
 
