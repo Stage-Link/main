@@ -8,10 +8,48 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
+const isHostRoute = createRouteMatcher(["/host(.*)"]);
+const isViewerRoute = createRouteMatcher(["/viewer(.*)"]);
+const isOrgSettingsRoute = createRouteMatcher(["/org-settings(.*)"]);
+const isOrgSelectRoute = createRouteMatcher(["/org-select(.*)"]);
+const isPricingRoute = createRouteMatcher(["/pricing(.*)"]);
+
 export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+  if (isPublicRoute(request)) return;
+
+  if (isHostRoute(request)) {
+    const session = await auth.protect();
+    const allowed =
+      session.has({ permission: "org:stream:host" }) ||
+      session.has({ role: "org:admin" }) ||
+      session.has({ role: "org:stage_manager" });
+    if (!allowed) {
+      return new Response(null, { status: 403 });
+    }
+    return;
   }
+
+  if (isOrgSettingsRoute(request)) {
+    await auth.protect({ role: "org:admin" });
+    return;
+  }
+
+  if (isOrgSelectRoute(request)) {
+    await auth.protect();
+    return;
+  }
+
+  if (isViewerRoute(request)) {
+    await auth.protect();
+    return;
+  }
+
+  if (isPricingRoute(request)) {
+    await auth.protect();
+    return;
+  }
+
+  await auth.protect();
 });
 
 export const config = {

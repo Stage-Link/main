@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface CameraPreviewProps {
@@ -11,6 +12,8 @@ interface CameraPreviewProps {
 
 export function CameraPreview({ stream, loading = false, mirrored = false }: CameraPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -18,9 +21,52 @@ export function CameraPreview({ stream, loading = false, mirrored = false }: Cam
     }
   }, [stream]);
 
+  useEffect(() => {
+    function onFullscreenChange() {
+      setIsFullscreen(!!(document.fullscreenElement ?? (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement));
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const container = containerRef.current;
+    const video = videoRef.current;
+    const isFs = !!(document.fullscreenElement ?? (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement);
+
+    if (isFs) {
+      const exitFs = document.exitFullscreen ?? (document as Document & { webkitExitFullscreen?: () => void }).webkitExitFullscreen;
+      exitFs?.call(document);
+      return;
+    }
+
+    const requestFs = container?.requestFullscreen ?? (container as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> })?.webkitRequestFullscreen;
+    if (requestFs) {
+      requestFs.call(container).catch((err: unknown) => {
+        console.error("Error attempting to enable fullscreen:", err);
+      });
+      return;
+    }
+
+    // iOS: only <video> can go fullscreen
+    if (video && typeof (video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function") {
+      setIsFullscreen(true);
+      video.addEventListener("webkitendfullscreen", function onEnd() {
+        video.removeEventListener("webkitendfullscreen", onEnd);
+        setIsFullscreen(false);
+      }, { once: true });
+      (video as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen();
+    }
+  }, []);
+
   return (
     <div
-      className="relative w-full rounded-[20px] overflow-hidden shadow-2xl transition-all duration-300"
+      ref={containerRef}
+      className="relative w-full rounded-xl md:rounded-[20px] overflow-hidden shadow-2xl transition-all duration-300 group"
       style={{
         background:
           "linear-gradient(to bottom right, #0a0a0a, #111111, #050505)",
@@ -63,6 +109,21 @@ export function CameraPreview({ stream, loading = false, mirrored = false }: Cam
             </div>
           </div>
         )}
+
+        {/* Fullscreen toggle — bottom-left so it doesn't overlap LIVE badge; always visible on mobile */}
+        <div className="absolute inset-0 z-[5] flex items-end justify-start p-3 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="pointer-events-auto bg-black/60 backdrop-blur-sm rounded-lg p-2.5 md:p-2 text-white/60 hover:text-gold hover:bg-black/80 transition-all cursor-pointer"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4" strokeWidth={1.8} />
+            ) : (
+              <Maximize2 className="h-4 w-4" strokeWidth={1.8} />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

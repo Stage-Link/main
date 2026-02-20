@@ -9,14 +9,19 @@ import {
   type WebRTCStats,
 } from "@/lib/webrtc/stats";
 
-// ─── Optimized media constraints (Task 1.1) ────────────────────────
-const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
-  width: { ideal: 1280, max: 1280 },
-  height: { ideal: 720, max: 720 },
-  frameRate: { ideal: 30, max: 30 },
-  // @ts-expect-error — latency hint not in all type defs yet
+// ─── Base media constraints ────────────────────────────────────────
+const BASE_VIDEO_OPTIONS = {
+  frameRate: { ideal: 30, max: 30 } as const,
   latency: { ideal: 0, max: 0.1 },
 };
+
+function getVideoConstraints(canUseHd: boolean): MediaTrackConstraints {
+  return {
+    ...BASE_VIDEO_OPTIONS,
+    width: canUseHd ? { ideal: 1920, max: 1920 } : { ideal: 1280, max: 1280 },
+    height: canUseHd ? { ideal: 1080, max: 1080 } : { ideal: 720, max: 720 },
+  };
+}
 
 // ─── Signaling message types ────────────────────────────────────────
 export interface SignalData {
@@ -65,7 +70,13 @@ export interface UseHostWebRTCReturn {
   setHostId: (id: string) => void;
 }
 
-export function useHostWebRTC(): UseHostWebRTCReturn {
+export interface UseHostWebRTCOptions {
+  /** If true, use 1080p; otherwise 720p (plan-gated via hd_video feature) */
+  canUseHd?: boolean;
+}
+
+export function useHostWebRTC(options: UseHostWebRTCOptions = {}): UseHostWebRTCReturn {
+  const { canUseHd = false } = options;
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameras, setCameras] = useState<CameraDevice[]>([]);
   const [selectedCamera, setSelectedCamera] = useState("");
@@ -96,16 +107,28 @@ export function useHostWebRTC(): UseHostWebRTCReturn {
     sendSignalRef.current = fn;
   }, []);
 
-  // Initialize camera with optimized constraints
-  const initCamera = useCallback(async (deviceId?: string) => {
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: {
-          ...VIDEO_CONSTRAINTS,
-          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-        },
-        audio: false,
-      };
+  // Initialize camera with plan-gated resolution (720p vs 1080p)
+  const initCamera = useCallback(
+    async (deviceId?: string) => {
+      try {
+        if (
+          typeof navigator === "undefined" ||
+          !navigator.mediaDevices?.getUserMedia
+        ) {
+          console.warn(
+            "getUserMedia not available (requires HTTPS or localhost on iOS)"
+          );
+          setLoading(false);
+          return null;
+        }
+
+        const constraints: MediaStreamConstraints = {
+          video: {
+            ...getVideoConstraints(canUseHd),
+            ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+          },
+          audio: false,
+        };
 
       const mediaStream =
         await navigator.mediaDevices.getUserMedia(constraints);
@@ -131,7 +154,9 @@ export function useHostWebRTC(): UseHostWebRTCReturn {
       setLoading(false);
       return null;
     }
-  }, []);
+  },
+    [canUseHd],
+  );
 
   // Create peer connection for a viewer (P2P mode)
   const createPeerConnection = useCallback(async (viewerId: string) => {

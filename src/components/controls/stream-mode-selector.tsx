@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
@@ -10,6 +11,8 @@ interface StreamModeSelectorProps {
   onModeChange: (mode: StreamMode) => void;
   disabled?: boolean;
   sfuStatus?: "disconnected" | "connecting" | "connected" | "error";
+  /** If false, SFU option is disabled and upgrade prompt is shown */
+  canUseSfu?: boolean;
 }
 
 export function StreamModeSelector({
@@ -17,7 +20,13 @@ export function StreamModeSelector({
   onModeChange,
   disabled = false,
   sfuStatus,
+  canUseSfu = true,
 }: StreamModeSelectorProps) {
+  const handleValueChange = (v: string) => {
+    if (v === "sfu" && !canUseSfu) return;
+    onModeChange(v as StreamMode);
+  };
+
   return (
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
@@ -44,10 +53,7 @@ export function StreamModeSelector({
           </Badge>
         )}
       </div>
-      <Tabs
-        value={mode}
-        onValueChange={(v) => onModeChange(v as StreamMode)}
-      >
+      <Tabs value={mode} onValueChange={handleValueChange}>
         <TabsList className="w-full">
           <TabsTrigger value="p2p" disabled={disabled} className="flex-1">
             <div className="flex flex-col items-center">
@@ -55,7 +61,11 @@ export function StreamModeSelector({
               <span className="text-[10px] text-muted-foreground">Direct</span>
             </div>
           </TabsTrigger>
-          <TabsTrigger value="sfu" disabled={disabled} className="flex-1">
+          <TabsTrigger
+            value="sfu"
+            disabled={disabled || !canUseSfu}
+            className="flex-1"
+          >
             <div className="flex flex-col items-center">
               <span className="text-xs font-medium">SFU</span>
               <span className="text-[10px] text-muted-foreground">Scalable</span>
@@ -63,11 +73,21 @@ export function StreamModeSelector({
           </TabsTrigger>
         </TabsList>
       </Tabs>
-      <p className="text-[10px] text-muted-foreground leading-relaxed">
-        {mode === "p2p"
-          ? "Direct connection. Best for LAN, up to ~15 viewers."
-          : "Cloudflare edge relay. Scales to hundreds of viewers."}
-      </p>
+      {!canUseSfu && (
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          SFU mode is available on Production and Showtime plans.{" "}
+          <Link href="/pricing" className="text-gold hover:underline">
+            Upgrade
+          </Link>
+        </p>
+      )}
+      {canUseSfu && (
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          {mode === "p2p"
+            ? "Direct connection. Best for LAN, up to ~15 viewers."
+            : "Cloudflare edge relay. Scales to hundreds of viewers."}
+        </p>
+      )}
     </div>
   );
 }

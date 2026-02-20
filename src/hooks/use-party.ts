@@ -25,11 +25,16 @@ export interface HostModeInfo {
   mode: "p2p" | "sfu";
   sfuSessionId: string | null;
   sfuTrackName: string | null;
+  maxViewers?: number;
 }
 
 export interface UsePartyOptions {
   room: string;
   role: "host" | "viewer";
+  /** PartyKit party name — omit for the default (signaling) party */
+  party?: string;
+  /** Optional org ID for server-side validation (e.g. room should match org) */
+  orgId?: string;
   onSignal?: (data: SignalMessage) => void;
   onViewerJoined?: (viewerId: string) => void;
   onViewerLeft?: (viewerId: string) => void;
@@ -40,6 +45,7 @@ export interface UsePartyOptions {
   onThemeChange?: (theme: string) => void;
   onViewerCount?: (count: number) => void;
   onConnectionStatusChange?: (status: "connected" | "disconnected" | "reconnecting") => void;
+  onRoomFull?: () => void;
 }
 
 export interface UsePartyReturn {
@@ -58,6 +64,7 @@ export interface UsePartyReturn {
     mode: "p2p" | "sfu",
     sfuSessionId?: string | null,
     sfuTrackName?: string | null,
+    maxViewers?: number,
   ) => void;
 }
 
@@ -74,10 +81,17 @@ export function useParty(options: UsePartyOptions): UsePartyReturn {
 
   const wsRef = useRef<ReturnType<typeof usePartySocket> | null>(null);
 
+  const hasRoom = options.room.length > 0;
+
   const ws = usePartySocket({
     host: process.env.NEXT_PUBLIC_PARTY_HOST!,
-    room: options.room,
-    query: { role: options.role },
+    party: options.party,
+    room: hasRoom ? options.room : "_pending",
+    startClosed: !hasRoom,
+    query: {
+      role: options.role,
+      ...(options.orgId ? { orgId: options.orgId } : {}),
+    },
 
     onOpen() {
       setConnectionStatus("connected");
@@ -119,6 +133,7 @@ export function useParty(options: UsePartyOptions): UsePartyReturn {
               mode: data.hostMode as "p2p" | "sfu",
               sfuSessionId: (data.sfuSessionId as string) ?? null,
               sfuTrackName: (data.sfuTrackName as string) ?? null,
+              maxViewers: typeof data.maxViewers === "number" ? data.maxViewers : undefined,
             });
           }
           break;
@@ -145,7 +160,12 @@ export function useParty(options: UsePartyOptions): UsePartyReturn {
             mode: (data.mode as "p2p" | "sfu") ?? "p2p",
             sfuSessionId: (data.sfuSessionId as string) ?? null,
             sfuTrackName: (data.sfuTrackName as string) ?? null,
+            maxViewers: typeof data.maxViewers === "number" ? data.maxViewers : undefined,
           });
+          break;
+
+        case "room-full":
+          cbs.onRoomFull?.();
           break;
 
         case "host-left":
@@ -236,6 +256,7 @@ export function useParty(options: UsePartyOptions): UsePartyReturn {
       mode: "p2p" | "sfu",
       sfuSessionId?: string | null,
       sfuTrackName?: string | null,
+      maxViewers?: number,
     ) => {
       ws.send(
         JSON.stringify({
@@ -243,6 +264,7 @@ export function useParty(options: UsePartyOptions): UsePartyReturn {
           mode,
           sfuSessionId: sfuSessionId ?? null,
           sfuTrackName: sfuTrackName ?? null,
+          ...(typeof maxViewers === "number" ? { maxViewers } : {}),
         }),
       );
     },
