@@ -18,10 +18,39 @@ const cormorant = Cormorant_Garamond({
   weight: ["300", "400", "600"],
 });
 
+const baseUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://your-main-app-domain.com";
+
+const title = "Stage Link - Real-Time Stage Monitoring";
+const description =
+  "Real-time stage monitoring system for theater crews. Stream your stage camera to crew members with near-zero latency.";
+
 export const metadata: Metadata = {
-  title: "Stage Link - Real-Time Stage Monitoring",
-  description:
-    "Real-time stage monitoring system for theater crews. Stream your stage camera to crew members with near-zero latency.",
+  title,
+  description,
+  icons: [
+    { url: "/icon", sizes: "128x128", type: "image/png" },
+    { url: "/icon-64", sizes: "64x64", type: "image/png" },
+  ],
+  openGraph: {
+    title,
+    description,
+    url: baseUrl,
+    siteName: "Stage Link",
+    images: [
+      {
+        url: `${baseUrl}/opengraph-image`,
+        width: 1200,
+        height: 630,
+        alt: "Stage Link",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
 };
 
 export default function RootLayout({
