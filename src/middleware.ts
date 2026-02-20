@@ -6,6 +6,10 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/webhooks(.*)",
+  "/icon",
+  "/apple-icon",
+  "/opengraph-image",
+  "/icon-64",
 ]);
 
 const isHostRoute = createRouteMatcher(["/host(.*)"]);
