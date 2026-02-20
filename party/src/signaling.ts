@@ -9,6 +9,10 @@ interface RoomState {
   hostMode: "p2p" | "sfu" | null;
   sfuSessionId: string | null;
   sfuTrackName: string | null;
+  /** Max viewers (from host plan); enforced when viewers connect */
+  maxViewers: number;
+  /** Stream ID extracted from room name ({orgId}:{streamId}) */
+  streamId: string | null;
   showSettings: {
     showName: string;
     selectedCamera: number;
@@ -23,11 +27,18 @@ export default class SignalingServer implements Party.Server {
     hostMode: null,
     sfuSessionId: null,
     sfuTrackName: null,
+    maxViewers: 5,
+    streamId: null,
     showSettings: { showName: "Untitled Show", selectedCamera: 0 },
     theme: "dark",
   };
 
-  constructor(readonly room: Party.Room) {}
+  constructor(readonly room: Party.Room) {
+    const parts = room.id.split(":");
+    if (parts.length >= 2) {
+      this.state.streamId = parts.slice(1).join(":");
+    }
+  }
 
   // Tag connections as "host" or "viewer" based on query param
   getConnectionTags(
@@ -60,6 +71,13 @@ export default class SignalingServer implements Party.Server {
     } else {
       console.log("Viewer connected:", connection.id);
 
+      const viewerCount = [...this.room.getConnections("viewer")].length;
+      if (viewerCount > this.state.maxViewers) {
+        connection.send(JSON.stringify({ type: "room-full" }));
+        connection.close();
+        return;
+      }
+
       // Send full room state to the new viewer
       connection.send(
         JSON.stringify({
@@ -68,6 +86,8 @@ export default class SignalingServer implements Party.Server {
           hostMode: this.state.hostMode,
           sfuSessionId: this.state.sfuSessionId,
           sfuTrackName: this.state.sfuTrackName,
+          maxViewers: this.state.maxViewers,
+          streamId: this.state.streamId,
           showSettings: this.state.showSettings,
           theme: this.state.theme,
         }),
@@ -112,15 +132,20 @@ export default class SignalingServer implements Party.Server {
         break;
       }
 
-      // ── Host announces mode / SFU info ──────────────────────
+      // ── Host announces mode / SFU info / viewer cap ─────────
       case "host-ready": {
         this.state.hostMode = (data.mode as "p2p" | "sfu") ?? null;
         this.state.sfuSessionId = (data.sfuSessionId as string) ?? null;
         this.state.sfuTrackName = (data.sfuTrackName as string) ?? null;
+        if (typeof data.maxViewers === "number" && data.maxViewers > 0) {
+          this.state.maxViewers = data.maxViewers;
+        }
         console.log(
           "Host mode:",
           this.state.hostMode,
           this.state.sfuSessionId ? `SFU: ${this.state.sfuSessionId}` : "",
+          "maxViewers:",
+          this.state.maxViewers,
         );
         // Broadcast to all viewers
         this.room.broadcast(message, [sender.id]);
