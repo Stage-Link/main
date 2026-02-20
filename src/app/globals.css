@@ -215,3 +215,56 @@ body::after {
   left: 0;
   right: 0;
 }
+
+/* Clerk components — dark/black theme (dropdowns, modals) */
+.cl-card,
+.cl-modalContent,
+.cl-userButtonPopoverCard,
+.cl-organizationSwitcherPopoverCard {
+  background: #080808 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+}
+.cl-userButtonTrigger,
+.cl-organizationSwitcherTrigger {
+  background: #111111 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #E8E8E8 !important;
+}
+.cl-userButtonTrigger:hover,
+.cl-organizationSwitcherTrigger:hover {
+  background: #1A1A1A !important;
+}
+.cl-navbarButton {
+  color: #E8E8E8 !important;
+}
+.cl-dropdownMenuContent {
+  background: #080808 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.cl-dropdownMenuItem {
+  color: #E8E8E8 !important;
+}
+.cl-dropdownMenuItem:hover {
+  background: #1A1A1A !important;
+}
+.cl-dropdownMenuSeparator {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+.cl-badge {
+  background: #1A1A1A !important;
+  color: #E8E8E8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.cl-formFieldInput {
+  background: #111111 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #E8E8E8 !important;
+}
+.cl-formButtonPrimary {
+  background: #C9A227 !important;
+  color: #000000 !important;
+}
+.cl-footerActionLink {
+  color: #C9A227 !important;
+}

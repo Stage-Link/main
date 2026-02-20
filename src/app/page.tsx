@@ -2,101 +2,285 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useAuth, useOrganization, UserButton } from "@clerk/nextjs";
+import { useSubscription } from "@clerk/nextjs/experimental";
+import { OrganizationSwitcher } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import { isPaidSubscription } from "@/lib/billing/plans";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Monitor, Radio } from "lucide-react";
+  Monitor,
+  Radio,
+  Building2,
+  Mail,
+  Settings,
+  Shield,
+  Users,
+} from "lucide-react";
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0 },
 };
 
 const stagger = {
+  hidden: {},
   visible: {
-    transition: { staggerChildren: 0.12 },
+    transition: { staggerChildren: 0.1 },
   },
 };
 
 const scaleIn = {
-  hidden: { opacity: 0, scale: 0.8 },
+  hidden: { opacity: 0, scale: 0.9 },
   visible: { opacity: 1, scale: 1 },
 };
 
 export default function HomePage() {
-  return (
-    <div className="min-h-screen bg-surface-0 text-foreground flex items-center justify-center">
-      <div className="container mx-auto px-4 py-8">
-        <motion.div
-          className="max-w-2xl mx-auto text-center space-y-10"
-          initial="hidden"
-          animate="visible"
-          variants={stagger}
-        >
-          {/* Header */}
-          <motion.div className="space-y-3" variants={fadeUp} transition={{ duration: 0.5 }}>
-            <h1 className="text-5xl font-display font-semibold tracking-tight text-gold">
-              Stage Link
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Real-time stage monitoring system for theater crews
-            </p>
-            <motion.div variants={scaleIn} transition={{ duration: 0.3 }}>
-              <Badge variant="stat-muted">v2.0</Badge>
-            </motion.div>
-          </motion.div>
+  const { isSignedIn, isLoaded: authLoaded } = useAuth();
+  const { organization, isLoaded: orgLoaded, membership } = useOrganization();
+  const { data: subscription, isLoading: subscriptionLoading } = useSubscription({
+    for: "organization",
+  });
 
-          {/* Navigation Cards */}
+  const ready = authLoaded && orgLoaded;
+  const orgRole = membership?.role;
+  const isAdmin = orgRole === "org:admin";
+  const canHost = isAdmin || orgRole === "org:stage_manager";
+  const showCreateOrJoinOrg = ready && isSignedIn && !organization;
+
+  const hasPlan = isPaidSubscription(subscription);
+  const showStreamActions = organization && !subscriptionLoading && hasPlan;
+
+  return (
+    <div className="min-h-screen bg-surface-0 text-foreground flex flex-col relative overflow-hidden">
+      {/* Ambient glow */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full bg-gold/[0.04] blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-1/4 w-[400px] h-[300px] rounded-full bg-crimson/[0.03] blur-[100px]" />
+      </div>
+
+      {/* Header */}
+      {isSignedIn && (
+        <header className="relative z-10 border-b border-white/[0.06] bg-surface-0/80 backdrop-blur-xl">
+          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-display font-semibold tracking-wide">
+                Stage<span className="text-gold">Link</span>
+              </span>
+              <div className="h-4 w-px bg-white/10" />
+              <OrganizationSwitcher
+                hidePersonal
+                afterSelectOrganizationUrl="/"
+                afterCreateOrganizationUrl="/"
+              />
+            </div>
+            <nav className="flex items-center gap-3">
+              {isAdmin && (
+                <Link
+                  href="/org-settings"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                >
+                  <Settings className="h-3 w-3" />
+                  Settings
+                </Link>
+              )}
+              <UserButton afterSignOutUrl="/" />
+            </nav>
+          </div>
+        </header>
+      )}
+
+      {/* Main content */}
+      {/* Main content */}
+      <div className="relative z-10 flex-1 flex items-center justify-center px-6 py-16">
+        {!ready ? (
+          <div className="flex justify-center py-8">
+            <div className="h-5 w-5 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
+          </div>
+        ) : (
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            key={isSignedIn ? (organization ? "org" : "no-org") : "signed-out"}
+            className="max-w-xl w-full text-center space-y-12"
+            initial="hidden"
+            animate="visible"
             variants={stagger}
           >
-            <motion.div variants={fadeUp} transition={{ duration: 0.4 }}>
-              <Link href="/host" className="group block">
-                <Card className="h-full border-white/10 hover:border-gold/30 hover:glow-gold transition-all duration-300">
-                  <CardHeader className="items-center text-center space-y-2">
-                    <div className="h-10 w-10 rounded-xl bg-gold/10 flex items-center justify-center mb-1">
-                      <Radio className="h-5 w-5 text-gold" strokeWidth={1.8} />
-                    </div>
-                    <CardTitle className="text-gold">Host Control</CardTitle>
-                    <CardDescription>
-                      Manage cameras and show settings
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
+            {/* Brand */}
+            <motion.div className="space-y-4" variants={fadeUp} transition={{ duration: 0.6 }}>
+              <h1 className="text-5xl sm:text-6xl font-display font-semibold tracking-tight text-foreground">
+                Stage<span className="text-gold">Link</span>
+              </h1>
+              <p className="text-muted-foreground text-base max-w-sm mx-auto leading-relaxed">
+                Real-time stage monitoring for theater crews.
+                Low-latency video, private to your organization.
+              </p>
             </motion.div>
 
-            <motion.div variants={fadeUp} transition={{ duration: 0.4 }}>
-              <Link href="/viewer" className="group block">
-                <Card className="h-full border-white/10 hover:border-crimson/30 hover:glow-crimson transition-all duration-300">
-                  <CardHeader className="items-center text-center space-y-2">
-                    <div className="h-10 w-10 rounded-xl bg-crimson/10 flex items-center justify-center mb-1">
-                      <Monitor className="h-5 w-5 text-crimson" strokeWidth={1.8} />
+            {/* State-dependent content */}
+            {!isSignedIn ? (
+              <motion.div className="space-y-8" variants={fadeUp} transition={{ duration: 0.5 }}>
+                <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto">
+                  {[
+                    { icon: Radio, label: "Low latency" },
+                    { icon: Shield, label: "Private streams" },
+                    { icon: Users, label: "Team access" },
+                  ].map(({ icon: Icon, label }) => (
+                    <div
+                      key={label}
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface-2/50 border border-white/[0.04]"
+                    >
+                      <Icon className="h-4 w-4 text-gold/70" strokeWidth={1.5} />
+                      <span className="text-[11px] text-muted-foreground">{label}</span>
                     </div>
-                    <CardTitle className="text-crimson">View Feed</CardTitle>
-                    <CardDescription>
-                      Watch the stage feed in real-time
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            </motion.div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button asChild size="lg" className="bg-gold text-black hover:bg-gold-bright font-medium px-8">
+                    <Link href="/sign-in">Sign in</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg" className="border-white/10 hover:bg-surface-3">
+                    <Link href="/sign-up">Create account</Link>
+                  </Button>
+                </div>
+              </motion.div>
+            ) : showCreateOrJoinOrg ? (
+              <motion.div
+                className="max-w-md mx-auto rounded-2xl bg-surface-1 border border-white/[0.06] p-8 space-y-6"
+                variants={scaleIn}
+                transition={{ duration: 0.4 }}
+              >
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gold/10 border border-gold/20 mx-auto">
+                  <Building2 className="h-5 w-5 text-gold" strokeWidth={1.5} />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Create or join an organization
+                  </h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Streams are private to each organization. Create one
+                    for your crew, or check your email if you&apos;ve been invited.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <Button asChild className="w-full bg-gold text-black hover:bg-gold-bright gap-2">
+                    <Link href="/org-select">
+                      <Building2 className="h-4 w-4" />
+                      Create organization
+                    </Link>
+                  </Button>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                    <span>Have an invite? Use the link in your email.</span>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="space-y-4">
+                {organization && (
+                  <motion.p
+                    className="text-xs text-muted-foreground"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    Streaming as{" "}
+                    <span className="text-foreground font-medium">
+                      {organization.name}
+                    </span>
+                  </motion.p>
+                )}
+
+                {subscriptionLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="h-5 w-5 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
+                  </div>
+                ) : showStreamActions ? (
+                  <motion.div
+                    className={`grid gap-4 ${canHost ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-xs mx-auto"}`}
+                    initial="hidden"
+                    animate="visible"
+                    variants={stagger}
+                  >
+                    {canHost && (
+                      <motion.div variants={scaleIn} transition={{ duration: 0.35 }}>
+                        <Link href="/host" className="group block">
+                          <div className="relative rounded-2xl border border-white/10 bg-surface-2 p-6 text-center space-y-4 transition-all duration-300 hover:border-gold/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(201,162,39,0.1)]">
+                            <div className="mx-auto w-12 h-12 rounded-xl bg-gold/15 border border-gold/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                              <Radio className="h-5 w-5 text-gold" strokeWidth={1.5} />
+                            </div>
+                            <div className="space-y-1">
+                              <h3 className="text-base font-semibold text-foreground">
+                                Host Control
+                              </h3>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                Start streaming, manage cameras, and control show settings
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-center gap-1.5 text-[10px] text-gold/80 font-medium uppercase tracking-wider">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gold/60 animate-pulse" />
+                              Broadcast
+                            </div>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    )}
+
+                    <motion.div variants={scaleIn} transition={{ duration: 0.35 }}>
+                      <Link href="/viewer" className="group block">
+                        <div className="relative rounded-2xl border border-white/10 bg-surface-2 p-6 text-center space-y-4 transition-all duration-300 hover:border-crimson/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(183,28,46,0.1)]">
+                          <div className="mx-auto w-12 h-12 rounded-xl bg-crimson/15 border border-crimson/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                            <Monitor className="h-5 w-5 text-crimson" strokeWidth={1.5} />
+                          </div>
+                          <div className="space-y-1">
+                            <h3 className="text-base font-semibold text-foreground">
+                              View Feed
+                            </h3>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              Watch the live stage feed with your crew in real-time
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-center gap-1.5 text-[10px] text-crimson/80 font-medium uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-crimson/60" />
+                            Watch
+                          </div>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  </motion.div>
+                ) : organization ? (
+                  <motion.div
+                    className="max-w-md mx-auto rounded-2xl bg-surface-1 border border-white/[0.06] p-8 space-y-6"
+                    initial="hidden"
+                    animate="visible"
+                    variants={scaleIn}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <div className="space-y-2 text-center">
+                      <h2 className="text-lg font-semibold text-foreground">
+                        A plan is required to stream
+                      </h2>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Subscribe to Crew, Production, or Showtime to host or view streams.
+                      </p>
+                    </div>
+                    <Button asChild className="w-full bg-gold text-black hover:bg-gold-bright">
+                      <Link href="/pricing">View plans</Link>
+                    </Button>
+                  </motion.div>
+                ) : null}
+              </div>
+            )}
+
+            {/* Footer */}
+            <motion.footer
+              className="text-muted-foreground/50 text-[11px] tracking-wide"
+              variants={fadeUp}
+              transition={{ duration: 0.4 }}
+            >
+              StageLink &middot; Christian Furr
+            </motion.footer>
           </motion.div>
-
-          {/* Footer */}
-          <motion.footer
-            className="text-muted-foreground text-xs"
-            variants={fadeUp}
-            transition={{ duration: 0.4 }}
-          >
-            Created by Christian Furr
-          </motion.footer>
-        </motion.div>
+        )}
       </div>
     </div>
   );

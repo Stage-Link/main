@@ -1,245 +1,113 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { UserButton } from "@clerk/nextjs";
+import { useState, useCallback } from "react";
+import { useOrganization, UserButton } from "@clerk/nextjs";
+import { useSubscription } from "@clerk/nextjs/experimental";
+import { useRouter } from "next/navigation";
+import { OrganizationSwitcher } from "@clerk/nextjs";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { VideoPlayer } from "@/components/video/video-player";
-import { StatsPanel } from "@/components/video/stats-panel";
-import { ChatPanel } from "@/components/chat/chat-panel";
 import { ConnectionStatus } from "@/components/layout/connection-status";
 import { LiveClock } from "@/components/layout/live-clock";
 import { Badge } from "@/components/ui/badge";
 import { AppShell, SidebarSection } from "@/components/layout/app-shell";
-import { useViewerWebRTC } from "@/hooks/use-webrtc";
-import { useSfuViewer } from "@/hooks/use-sfu";
-import {
-  useParty,
-  type SignalMessage,
-  type HostModeInfo,
-} from "@/hooks/use-party";
-import { BarChart3, Info, Radio } from "lucide-react";
-
-interface ChatMessage {
-  text: string;
-  sender: string;
-  timestamp: string;
-}
+import { StreamGrid } from "@/components/video/stream-grid";
+import { StreamSelector } from "@/components/video/stream-selector";
+import { useLobby } from "@/hooks/use-lobby";
+import { useIsMobilePortrait } from "@/hooks/use-media-query";
+import { MobileWarning } from "@/components/layout/mobile-warning";
+import { isPaidSubscription } from "@/lib/billing/plans";
+import { GRID_CELL_COUNTS, type GridLayout } from "@/lib/streams/types";
+import { Radio } from "lucide-react";
 
 export default function ViewerPage() {
-  // P2P WebRTC hook — transport-agnostic (no Socket.IO)
-  const webrtc = useViewerWebRTC();
-
-  // Host mode state (received from PartyKit)
-  const [hostMode, setHostMode] = useState<HostModeInfo>({
-    mode: "p2p",
-    sfuSessionId: null,
-    sfuTrackName: null,
+  const { organization, isLoaded } = useOrganization();
+  const { data: subscription, isLoading: subscriptionLoading } = useSubscription({
+    for: "organization",
   });
+  const router = useRouter();
+  const isMobilePortrait = useIsMobilePortrait();
 
-  // SFU viewer hook — always called (rules of hooks)
-  const sfuViewer = useSfuViewer(hostMode.sfuSessionId, hostMode.sfuTrackName);
-
-  const [showName, setShowName] = useState("Untitled Show");
-  const [cameraName, setCameraName] = useState("Camera 1");
-  const [username, setUsername] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [showStats, setShowStats] = useState(false);
-
-  // Track previous host mode to detect transitions
-  const prevHostModeRef = useRef<"p2p" | "sfu">("p2p");
-
-  // ── PartyKit signaling ────────────────────────────────────────
-  const party = useParty({
-    room: "stage-link-main",
+  // ── Lobby connection for stream discovery ───────────────────────
+  const lobby = useLobby({
+    orgId: organization?.id ?? "",
     role: "viewer",
-
-    // Relay incoming WebRTC signals (offers, ICE candidates) to the WebRTC hook
-    onSignal: useCallback(
-      (data: SignalMessage) => {
-        webrtc.handleSignal(data);
-      },
-      [webrtc.handleSignal],
-    ),
-
-    // Host announces its mode (P2P or SFU)
-    onHostReady: useCallback((info: HostModeInfo) => {
-      console.log("Received host mode:", info);
-      setHostMode(info);
-    }, []),
-
-    // Host disconnected
-    onHostLeft: useCallback(() => {
-      setHostMode({ mode: "p2p", sfuSessionId: null, sfuTrackName: null });
-    }, []),
-
-    // Chat messages from other users
-    onChatMessage: useCallback(
-      (msg: { text: string; sender: string; timestamp: string }) => {
-        setMessages((prev) => [...prev, msg]);
-      },
-      [],
-    ),
-
-    // Show settings updated by host
-    onShowSettings: useCallback(
-      (settings: { showName: string; selectedCamera: number }) => {
-        if (settings.showName) setShowName(settings.showName);
-        setCameraName(`Camera ${(settings.selectedCamera ?? 0) + 1}`);
-      },
-      [],
-    ),
   });
 
-  // ── Wire PartyKit sendSignal to WebRTC hook ───────────────────
-  useEffect(() => {
-    if (party.connectionStatus === "connected") {
-      webrtc.setSendSignal(party.sendSignal);
-    }
-  }, [party.connectionStatus, party.sendSignal, webrtc.setSendSignal]);
+  // Track which streams are selected for the grid
+  const [selectedStreamIds, setSelectedStreamIds] = useState<string[]>([]);
+  const [gridLayout] = useState<GridLayout>("1x1");
 
-  // ── Set viewerId from PartyKit connectionId ───────────────────
-  useEffect(() => {
-    if (party.connectionId) {
-      webrtc.setViewerId(party.connectionId);
-    }
-  }, [party.connectionId, webrtc.setViewerId]);
+  const maxSelectable = GRID_CELL_COUNTS[gridLayout];
 
-  // ── Auto-connect/disconnect SFU viewer when host mode changes ─
-  useEffect(() => {
-    const prev = prevHostModeRef.current;
-    prevHostModeRef.current = hostMode.mode;
-
-    if (
-      hostMode.mode === "sfu" &&
-      hostMode.sfuSessionId &&
-      hostMode.sfuTrackName
-    ) {
-      // Disconnect previous SFU if reconnecting
-      if (
-        sfuViewer.status === "connected" ||
-        sfuViewer.status === "connecting"
-      ) {
-        sfuViewer.disconnect();
-      }
-      // Small delay to allow disconnect cleanup before reconnecting
-      const timer = setTimeout(
-        () => {
-          sfuViewer.connect();
-        },
-        prev === "sfu" ? 200 : 0,
-      );
-      return () => clearTimeout(timer);
-    } else if (hostMode.mode === "p2p" && prev === "sfu") {
-      // Switched back to P2P — disconnect SFU
-      sfuViewer.disconnect();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hostMode.mode, hostMode.sfuSessionId, hostMode.sfuTrackName]);
-
-  // Send chat message via PartyKit
-  const handleSendMessage = useCallback(
-    (text: string) => {
-      if (party.connectionStatus !== "connected") return;
-
-      const sender = username || "Anonymous";
-      party.sendChat(text, sender);
-
-      // Add locally immediately (optimistic)
-      setMessages((prev) => [
-        ...prev,
-        { text, sender, timestamp: new Date().toISOString() },
-      ]);
+  const handleToggleStream = useCallback(
+    (streamId: string) => {
+      setSelectedStreamIds((prev) => {
+        if (prev.includes(streamId)) {
+          return prev.filter((id) => id !== streamId);
+        }
+        if (prev.length >= maxSelectable) {
+          return prev;
+        }
+        return [...prev, streamId];
+      });
     },
-    [username, party.connectionStatus, party.sendChat],
+    [maxSelectable],
   );
 
-  // Derive active stream and stats based on host mode
-  const isSfuMode = hostMode.mode === "sfu";
-  const activeStream = isSfuMode ? sfuViewer.stream : webrtc.stream;
-  const activeLatency = isSfuMode ? (sfuViewer.latency ?? webrtc.latency) : webrtc.latency;
-  const activeStats = isSfuMode ? sfuViewer.stats : webrtc.stats;
-  const activeLoading = isSfuMode
-    ? sfuViewer.status === "connecting" || sfuViewer.status === "disconnected"
-    : webrtc.loading;
-
-  // Derive connection status
-  const activeConnectionStatus = isSfuMode
-    ? sfuViewer.status === "connected"
-      ? "connected"
-      : sfuViewer.status === "error"
-        ? "error"
-        : sfuViewer.status === "connecting"
-          ? "connecting"
-          : "disconnected"
-    : webrtc.connectionStatus;
-
-  // ── Sidebar (Chat + optional Stats) ───────────────────────────
-  const sidebar = (
-    <>
-      {/* Chat takes most of sidebar space */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        <ChatPanel
-          messages={messages}
-          username={username}
-          onUsernameChange={setUsername}
-          onSendMessage={handleSendMessage}
-        />
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-surface-0 flex items-center justify-center text-muted-foreground text-sm">
+        Loading…
       </div>
+    );
+  }
+  if (!organization) {
+    router.replace("/org-select");
+    return (
+      <div className="min-h-screen bg-surface-0 flex items-center justify-center text-muted-foreground text-sm">
+        Redirecting…
+      </div>
+    );
+  }
 
-      <div className="border-t border-white/[0.06]" />
+  if (subscriptionLoading) {
+    return (
+      <div className="min-h-screen bg-surface-0 flex items-center justify-center text-muted-foreground text-sm">
+        Loading plan…
+      </div>
+    );
+  }
 
-      {/* Stats Toggle */}
-      <SidebarSection>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowStats(!showStats)}
-          className="w-full justify-start text-xs"
-        >
-          <BarChart3 className="h-3.5 w-3.5" />
-          {showStats ? "Hide Stats" : "Show Stats"}
+  if (!subscription || !isPaidSubscription(subscription)) {
+    return (
+      <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center gap-6 px-6">
+        <div className="max-w-md text-center space-y-2">
+          <h2 className="text-lg font-display font-semibold text-foreground">
+            A plan is required to view streams
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Your organization needs an active subscription to view streams. Subscribe to Crew, Production, or Showtime to get started.
+          </p>
+        </div>
+        <Button asChild className="bg-gold text-black hover:bg-gold-bright">
+          <Link href="/pricing">View plans</Link>
         </Button>
+      </div>
+    );
+  }
+
+  // ── Sidebar ────────────────────────────────────────────────────
+  const sidebarFull = (
+    <>
+      <SidebarSection title="Live Streams">
+        <StreamSelector
+          streams={lobby.streams}
+          selectedStreamIds={selectedStreamIds}
+          onToggleStream={handleToggleStream}
+          maxSelectable={maxSelectable}
+        />
       </SidebarSection>
-
-      {/* Collapsible Stats */}
-      {showStats && (
-        <>
-          <div className="border-t border-white/[0.06]" />
-          <SidebarSection title="Statistics">
-            <StatsPanel
-              webrtcStats={activeStats}
-              latency={activeLatency}
-            />
-          </SidebarSection>
-
-          <div className="border-t border-white/[0.06]" />
-          <SidebarSection title="Stream Info">
-            <div className="space-y-1.5 text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-white/60">Show</span>
-                <span className="text-white font-medium">{showName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/60">Camera</span>
-                <span className="text-white font-medium">{cameraName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/60">Mode</span>
-                <span className="text-gold font-medium">
-                  {isSfuMode ? "SFU (Cloudflare)" : "P2P (Direct)"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/60">Status</span>
-                <span className="text-gold font-medium">Live</span>
-              </div>
-            </div>
-          </SidebarSection>
-        </>
-      )}
-
-      {/* Bottom nav */}
       <div className="mt-auto border-t border-white/[0.06]">
         <SidebarSection>
           <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
@@ -253,24 +121,23 @@ export default function ViewerPage() {
     </>
   );
 
+  // Same sidebar for all viewports so mobile drawer includes stream selector
+  const sidebar = sidebarFull;
+
   // ── Top Bar ───────────────────────────────────────────────────
   const topBarCenter = (
     <>
-      <span className="text-sm font-display text-gold truncate max-w-48">
-        {showName}
-      </span>
-      <ConnectionStatus status={activeConnectionStatus} />
-      <Badge variant={isSfuMode ? "mode-gold" : "stat-muted"}>
-        {isSfuMode ? "SFU" : "P2P"}
+      <ConnectionStatus status={lobby.connectionStatus} />
+      <Badge variant="stat-muted">
+        <Radio className="h-3 w-3" />
+        {lobby.streams.length} live
       </Badge>
     </>
   );
 
   const topBarRight = (
     <>
-      <span className="text-[10px] text-white/40">
-        {username || "Guest"}
-      </span>
+      <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/viewer" afterCreateOrganizationUrl="/viewer" />
       <LiveClock />
       <UserButton />
     </>
@@ -282,31 +149,32 @@ export default function ViewerPage() {
       sidebar={sidebar}
       topBarCenter={topBarCenter}
       topBarRight={topBarRight}
+      mobileTopBarCenter={topBarCenter}
     >
-      <div className="h-full flex flex-col p-4">
-        {/* Video Player */}
-        <div className="flex-1 min-h-0">
-          <VideoPlayer
-            stream={activeStream}
-            loading={activeLoading}
-            cameraName={cameraName}
-          />
-        </div>
-
-        {/* Stream Info Bar */}
-        <div className="mt-3 flex items-center justify-between bg-surface-2 rounded-xl px-4 py-2.5 border border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-gold animate-live-pulse" />
-            <span className="text-xs text-white/60">Live Stream Active</span>
+      {isMobilePortrait ? (
+        <div className="h-full flex flex-col p-2 overflow-y-auto">
+          <MobileWarning />
+          <div className="flex-1 min-h-0 mt-2">
+            <StreamGrid
+              streams={lobby.streams}
+              orgId={organization.id}
+              selectedStreamIds={selectedStreamIds}
+              onSelectedStreamIdsChange={setSelectedStreamIds}
+            />
           </div>
-          <span className="text-xs text-white/40">
-            Viewing as{" "}
-            <span className="text-foreground font-medium">
-              {username || "Guest"}
-            </span>
-          </span>
         </div>
-      </div>
+      ) : (
+        <div className="h-full flex flex-col p-2 md:p-4">
+          <div className="flex-1 min-h-0">
+            <StreamGrid
+              streams={lobby.streams}
+              orgId={organization.id}
+              selectedStreamIds={selectedStreamIds}
+              onSelectedStreamIdsChange={setSelectedStreamIds}
+            />
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
