@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { Cormorant_Garamond } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
+import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -92,6 +93,7 @@ export default function RootLayout({
           <TooltipProvider>
             {children}
             <Toaster />
+            <Analytics />
           </TooltipProvider>
         </body>
       </html>
