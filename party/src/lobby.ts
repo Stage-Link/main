@@ -25,12 +25,16 @@ const STREAM_LIMITS: Record<OrgTier, number> = {
 
 const DEFAULT_TIER: OrgTier = "crew";
 
+function isValidTier(value: unknown): value is OrgTier {
+  return value === "crew" || value === "production" || value === "showtime";
+}
+
 // ─── Lobby Server ────────────────────────────────────────────────
 
 export default class LobbyServer implements Party.Server {
   streams: Map<string, StreamInfo> = new Map();
-  /** Maps host connection ID -> stream ID for cleanup on disconnect */
   hostToStream: Map<string, string> = new Map();
+  orgTier: OrgTier = DEFAULT_TIER;
   maxStreams: number = STREAM_LIMITS[DEFAULT_TIER];
 
   constructor(readonly room: Party.Room) {}
@@ -47,10 +51,11 @@ export default class LobbyServer implements Party.Server {
   onConnect(connection: Party.Connection, ctx: Party.ConnectionContext) {
     const url = new URL(ctx.request.url);
     const role = url.searchParams.get("role") ?? "viewer";
-    const tier = url.searchParams.get("tier") as OrgTier | null;
+    const rawTier = url.searchParams.get("tier");
 
-    if (role === "host" && tier && STREAM_LIMITS[tier] !== undefined) {
-      this.maxStreams = STREAM_LIMITS[tier];
+    if (role === "host" && isValidTier(rawTier)) {
+      this.orgTier = rawTier;
+      this.maxStreams = STREAM_LIMITS[rawTier];
     }
 
     connection.send(
@@ -61,7 +66,7 @@ export default class LobbyServer implements Party.Server {
       }),
     );
 
-    console.log(`Lobby: ${role} connected (${connection.id}), ${this.streams.size} active streams`);
+    console.log(`Lobby: ${role} connected (${connection.id}), tier=${this.orgTier}, ${this.streams.size} active streams`);
   }
 
   onMessage(message: string, sender: Party.Connection) {
@@ -110,11 +115,9 @@ export default class LobbyServer implements Party.Server {
           createdAt: Date.now(),
         };
 
-        if (data.tier) {
-          const tier = data.tier as OrgTier;
-          if (STREAM_LIMITS[tier] !== undefined) {
-            this.maxStreams = STREAM_LIMITS[tier];
-          }
+        if (isValidTier(data.tier)) {
+          this.orgTier = data.tier;
+          this.maxStreams = STREAM_LIMITS[data.tier];
         }
 
         this.streams.set(streamId, stream);

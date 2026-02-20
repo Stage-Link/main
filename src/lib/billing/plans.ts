@@ -1,8 +1,13 @@
-const FREE_PLAN_SLUG = "free";
+const FREE_PLAN_SLUGS = new Set(["free", "free_org"]);
 
 const PLAN_ID_CREW = process.env.NEXT_PUBLIC_PLAN_ID_CREW;
 const PLAN_ID_PRODUCTION = process.env.NEXT_PUBLIC_PLAN_ID_PRODUCTION;
 const PLAN_ID_SHOWTIME = process.env.NEXT_PUBLIC_PLAN_ID_SHOWTIME;
+
+const PAID_PLAN_IDS = new Set<string>();
+if (PLAN_ID_CREW) PAID_PLAN_IDS.add(PLAN_ID_CREW);
+if (PLAN_ID_PRODUCTION) PAID_PLAN_IDS.add(PLAN_ID_PRODUCTION);
+if (PLAN_ID_SHOWTIME) PAID_PLAN_IDS.add(PLAN_ID_SHOWTIME);
 
 const VIEWER_CAP: Record<string, number> = {};
 if (PLAN_ID_CREW) VIEWER_CAP[PLAN_ID_CREW] = 5;
@@ -58,17 +63,22 @@ export function extractPlanSlug(sub: unknown): string | undefined {
   return extractPlan(sub)?.slug;
 }
 
-/** True if the subscription is on any plan that isn't "free". */
+const PAID_SLUGS = new Set(["crew", "production", "showtime"]);
+
+/** True only if the subscription is on a known paid plan. Defaults to false for safety. */
 export function isPaidSubscription(sub: unknown): boolean {
   if (!sub) return false;
+
   const slug = extractPlanSlug(sub);
-  if (slug) return slug !== FREE_PLAN_SLUG;
+  if (slug) {
+    if (FREE_PLAN_SLUGS.has(slug)) return false;
+    if (PAID_SLUGS.has(slug)) return true;
+    return false;
+  }
+
   const planId = extractPlanId(sub);
-  if (!planId) return false;
-  if (planId in VIEWER_CAP) return true;
-  const plan = extractPlan(sub);
-  const name = plan?.name?.toLowerCase().trim();
-  if (name && name !== "free") return true;
+  if (planId && PAID_PLAN_IDS.has(planId)) return true;
+
   return false;
 }
 

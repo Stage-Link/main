@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 const CALLS_API = "https://rtc.live.cloudflare.com/apps";
@@ -7,6 +8,19 @@ const CALLS_API = "https://rtc.live.cloudflare.com/apps";
  * Each host and viewer gets their own session.
  */
 export async function POST() {
+  const { orgId, has } = await auth();
+
+  if (!orgId) {
+    return NextResponse.json({ error: "No organization" }, { status: 403 });
+  }
+
+  if (!has({ feature: "sfu_access" })) {
+    return NextResponse.json(
+      { error: "SFU access requires a Production or Showtime plan" },
+      { status: 403 },
+    );
+  }
+
   const appId = process.env.CALLS_APP_ID;
   const appSecret = process.env.CALLS_APP_SECRET;
 

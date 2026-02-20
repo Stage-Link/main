@@ -65,6 +65,7 @@ export interface UsePartyReturn {
     sfuSessionId?: string | null,
     sfuTrackName?: string | null,
     maxViewers?: number,
+    tier?: string,
   ) => void;
 }
 
@@ -257,6 +258,7 @@ export function useParty(options: UsePartyOptions): UsePartyReturn {
       sfuSessionId?: string | null,
       sfuTrackName?: string | null,
       maxViewers?: number,
+      tier?: string,
     ) => {
       ws.send(
         JSON.stringify({
@@ -265,6 +267,7 @@ export function useParty(options: UsePartyOptions): UsePartyReturn {
           sfuSessionId: sfuSessionId ?? null,
           sfuTrackName: sfuTrackName ?? null,
           ...(typeof maxViewers === "number" ? { maxViewers } : {}),
+          ...(tier ? { tier } : {}),
         }),
       );
     },

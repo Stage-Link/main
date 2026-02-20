@@ -36,7 +36,7 @@ export type OrgTier = "crew" | "production" | "showtime";
 export const STREAM_LIMITS: Record<OrgTier, number> = {
   crew: 1,
   production: 3,
-  showtime: 9,
+  showtime: 10,
 };
 
 /** Default tier when billing not wired up. Use "production" (3) or "showtime" (10) for more streams. */

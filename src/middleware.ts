@@ -44,7 +44,10 @@ export default clerkMiddleware(async (auth, request) => {
   }
 
   if (isViewerRoute(request)) {
-    await auth.protect();
+    const session = await auth.protect();
+    if (!session.orgId) {
+      return new Response(null, { status: 403 });
+    }
     return;
   }
 

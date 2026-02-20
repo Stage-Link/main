@@ -210,6 +210,7 @@ export default function HostPage() {
         streamMode === "sfu" ? sfu.sessionId : null,
         streamMode === "sfu" ? sfu.trackName : null,
         maxViewers,
+        orgTier,
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,7 +225,7 @@ export default function HostPage() {
       sfu.trackName &&
       party.connectionStatus === "connected"
     ) {
-      party.announceHostMode("sfu", sfu.sessionId, sfu.trackName, maxViewers);
+      party.announceHostMode("sfu", sfu.sessionId, sfu.trackName, maxViewers, orgTier);
 
       if (lobby.activeStreamId) {
         lobby.updateStream(lobby.activeStreamId, {

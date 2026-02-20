@@ -1,17 +1,28 @@
 import type * as Party from "partykit/server";
 
+// ─── Plan Limits ────────────────────────────────────────────────
+
+type OrgTier = "crew" | "production" | "showtime";
+
+const TIER_VIEWER_CAP: Record<OrgTier, number> = {
+  crew: 5,
+  production: 50,
+  showtime: 200,
+};
+
+function isValidTier(value: unknown): value is OrgTier {
+  return value === "crew" || value === "production" || value === "showtime";
+}
+
 // ─── Message Types ──────────────────────────────────────────────
-// All client messages have a `type` field. The server routes them
-// based on type and either updates room state or relays them.
 
 interface RoomState {
   hostId: string | null;
   hostMode: "p2p" | "sfu" | null;
   sfuSessionId: string | null;
   sfuTrackName: string | null;
-  /** Max viewers (from host plan); enforced when viewers connect */
+  tier: OrgTier;
   maxViewers: number;
-  /** Stream ID extracted from room name ({orgId}:{streamId}) */
   streamId: string | null;
   showSettings: {
     showName: string;
@@ -27,7 +38,8 @@ export default class SignalingServer implements Party.Server {
     hostMode: null,
     sfuSessionId: null,
     sfuTrackName: null,
-    maxViewers: 5,
+    tier: "crew",
+    maxViewers: TIER_VIEWER_CAP.crew,
     streamId: null,
     showSettings: { showName: "Untitled Show", selectedCamera: 0 },
     theme: "dark",
@@ -58,13 +70,15 @@ export default class SignalingServer implements Party.Server {
       this.state.hostId = connection.id;
       console.log("Host connected:", connection.id);
 
-      // Notify all existing viewers that the host is here
+      // Notify all existing viewers that the host is here (include tier/maxViewers for consistency)
       this.room.broadcast(
         JSON.stringify({
           type: "host-ready",
           mode: this.state.hostMode,
           sfuSessionId: this.state.sfuSessionId,
           sfuTrackName: this.state.sfuTrackName,
+          tier: this.state.tier,
+          maxViewers: this.state.maxViewers,
         }),
         [connection.id],
       );
@@ -132,22 +146,25 @@ export default class SignalingServer implements Party.Server {
         break;
       }
 
-      // ── Host announces mode / SFU info / viewer cap ─────────
       case "host-ready": {
         this.state.hostMode = (data.mode as "p2p" | "sfu") ?? null;
         this.state.sfuSessionId = (data.sfuSessionId as string) ?? null;
         this.state.sfuTrackName = (data.sfuTrackName as string) ?? null;
-        if (typeof data.maxViewers === "number" && data.maxViewers > 0) {
-          this.state.maxViewers = data.maxViewers;
+
+        if (isValidTier(data.tier)) {
+          this.state.tier = data.tier;
+          this.state.maxViewers = TIER_VIEWER_CAP[data.tier];
+        } else if (typeof data.maxViewers === "number" && data.maxViewers > 0) {
+          const cap = TIER_VIEWER_CAP[this.state.tier];
+          this.state.maxViewers = Math.min(data.maxViewers, cap);
         }
+
         console.log(
           "Host mode:",
           this.state.hostMode,
           this.state.sfuSessionId ? `SFU: ${this.state.sfuSessionId}` : "",
-          "maxViewers:",
-          this.state.maxViewers,
+          `tier: ${this.state.tier}, maxViewers: ${this.state.maxViewers}`,
         );
-        // Broadcast to all viewers
         this.room.broadcast(message, [sender.id]);
         break;
       }
