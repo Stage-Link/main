@@ -217,8 +217,8 @@ export default function PricingPage() {
                       planId={planId}
                       planPeriod={billingPeriod}
                       for="organization"
-                      onSubscriptionComplete={() => router.push("/host")}
-                      newSubscriptionRedirectUrl="/host"
+                      onSubscriptionComplete={() => router.push("/")}
+                      newSubscriptionRedirectUrl="/"
                     >
                       <Button className="w-full bg-gold text-black hover:bg-gold-bright">
                         {plan.hasTrial

@@ -41,7 +41,12 @@ import { useLobby } from "@/hooks/use-lobby";
 import { useIsMobilePortrait } from "@/hooks/use-media-query";
 import { MobileWarning } from "@/components/layout/mobile-warning";
 import type { OrgTier } from "@/lib/streams/types";
-import { isPaidSubscription, getViewerCap, getOrgTier } from "@/lib/billing/plans";
+import {
+  hasStreamAccess,
+  hasFullAccessBySlug,
+  getEffectiveViewerCap,
+  getEffectiveOrgTier,
+} from "@/lib/billing/plans";
 import {
   BarChart3,
   ChevronUp,
@@ -67,8 +72,8 @@ export default function HostPage() {
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription({
     for: "organization",
   });
-  const maxViewers = getViewerCap(subscription);
-  const orgTier: OrgTier = getOrgTier(subscription);
+  const maxViewers = getEffectiveViewerCap(subscription, organization?.slug);
+  const orgTier: OrgTier = getEffectiveOrgTier(subscription, organization?.slug);
   const canUseSfu = has?.({ feature: "sfu_access" }) ?? false;
   const canUseHd = has?.({ feature: "hd_video" }) ?? false;
   const [streamMode, setStreamMode] = useState<StreamMode>("p2p");
@@ -355,7 +360,9 @@ export default function HostPage() {
     );
   }
 
-  if (subscriptionLoading) {
+  const isFreeAccess = hasFullAccessBySlug(organization?.slug);
+
+  if (subscriptionLoading && !isFreeAccess) {
     return (
       <div className="min-h-screen bg-surface-0 flex items-center justify-center text-muted-foreground text-sm">
         Loading plan…
@@ -363,7 +370,7 @@ export default function HostPage() {
     );
   }
 
-  if (!subscription || !isPaidSubscription(subscription)) {
+  if (!hasStreamAccess(subscription, organization?.slug)) {
     return (
       <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center gap-6 px-6">
         <div className="max-w-md text-center space-y-2">

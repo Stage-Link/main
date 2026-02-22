@@ -16,7 +16,7 @@ import { StreamSelector } from "@/components/video/stream-selector";
 import { useLobby } from "@/hooks/use-lobby";
 import { useIsMobilePortrait } from "@/hooks/use-media-query";
 import { MobileWarning } from "@/components/layout/mobile-warning";
-import { isPaidSubscription } from "@/lib/billing/plans";
+import { hasStreamAccess, hasFullAccessBySlug } from "@/lib/billing/plans";
 import { GRID_CELL_COUNTS, type GridLayout } from "@/lib/streams/types";
 import { Radio } from "lucide-react";
 
@@ -71,7 +71,9 @@ export default function ViewerPage() {
     );
   }
 
-  if (subscriptionLoading) {
+  const isFreeAccess = hasFullAccessBySlug(organization?.slug);
+
+  if (subscriptionLoading && !isFreeAccess) {
     return (
       <div className="min-h-screen bg-surface-0 flex items-center justify-center text-muted-foreground text-sm">
         Loading plan…
@@ -79,7 +81,7 @@ export default function ViewerPage() {
     );
   }
 
-  if (!subscription || !isPaidSubscription(subscription)) {
+  if (!hasStreamAccess(subscription, organization?.slug)) {
     return (
       <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center gap-6 px-6">
         <div className="max-w-md text-center space-y-2">

@@ -6,7 +6,7 @@ import { useAuth, useOrganization, UserButton } from "@clerk/nextjs";
 import { useSubscription } from "@clerk/nextjs/experimental";
 import { OrganizationSwitcher } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { isPaidSubscription } from "@/lib/billing/plans";
+import { hasStreamAccess, hasFullAccessBySlug } from "@/lib/billing/plans";
 import {
   Monitor,
   Radio,
@@ -47,8 +47,10 @@ export default function HomePage() {
   const canHost = isAdmin || orgRole === "org:stage_manager";
   const showCreateOrJoinOrg = ready && isSignedIn && !organization;
 
-  const hasPlan = isPaidSubscription(subscription);
-  const showStreamActions = organization && !subscriptionLoading && hasPlan;
+  const hasFreeAccessBySlug = hasFullAccessBySlug(organization?.slug);
+  const hasPlan = hasStreamAccess(subscription, organization?.slug);
+  const showStreamActions =
+    organization && (hasFreeAccessBySlug || (!subscriptionLoading && hasPlan));
 
   return (
     <div className="min-h-screen bg-surface-0 text-foreground flex flex-col relative overflow-hidden">
@@ -190,7 +192,18 @@ export default function HomePage() {
                   </motion.p>
                 )}
 
-                {subscriptionLoading ? (
+                {hasFreeAccessBySlug && (
+                  <motion.p
+                    className="text-[11px] text-muted-foreground"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    Free access from Christian Furr
+                  </motion.p>
+                )}
+
+                {subscriptionLoading && !hasFreeAccessBySlug ? (
                   <div className="flex justify-center py-8">
                     <div className="h-5 w-5 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
                   </div>

@@ -106,3 +106,40 @@ export function getOrgTier(sub: unknown): "crew" | "production" | "showtime" {
   if (slug && slug in SLUG_TO_TIER) return SLUG_TO_TIER[slug];
   return "crew";
 }
+
+// ─── Slug-based full access allowlist ────────────────────────────
+
+const FULL_ACCESS_ORG_SLUGS = new Set([
+  "tyler-s-organization-1771801460",
+  "christian-s-organization-1771625615",
+]);
+
+export function hasFullAccessBySlug(
+  orgSlug: string | null | undefined,
+): boolean {
+  if (orgSlug == null || typeof orgSlug !== "string") return false;
+  return FULL_ACCESS_ORG_SLUGS.has(orgSlug);
+}
+
+export function hasStreamAccess(
+  subscription: unknown,
+  orgSlug: string | null | undefined,
+): boolean {
+  return isPaidSubscription(subscription) || hasFullAccessBySlug(orgSlug);
+}
+
+export function getEffectiveViewerCap(
+  sub: unknown,
+  orgSlug: string | null | undefined,
+): number {
+  if (hasFullAccessBySlug(orgSlug)) return 200;
+  return getViewerCap(sub);
+}
+
+export function getEffectiveOrgTier(
+  sub: unknown,
+  orgSlug: string | null | undefined,
+): "crew" | "production" | "showtime" {
+  if (hasFullAccessBySlug(orgSlug)) return "showtime";
+  return getOrgTier(sub);
+}
