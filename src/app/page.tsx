@@ -11,11 +11,13 @@ import {
   Monitor,
   Radio,
   Building2,
+  Gift,
   Mail,
   Settings,
   Shield,
   Users,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -193,14 +195,20 @@ export default function HomePage() {
                 )}
 
                 {hasFreeAccessBySlug && (
-                  <motion.p
-                    className="text-[11px] text-muted-foreground"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                  <motion.div
+                    className="flex justify-center"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4 }}
                   >
-                    Free access from Christian Furr
-                  </motion.p>
+                    <Badge
+                      variant="mode-gold"
+                      className="text-xs font-semibold px-3 py-1.5 gap-1.5 shadow-[0_0_16px_rgba(201,162,39,0.25)]"
+                    >
+                      <Gift className="size-3.5" />
+                      Free access from Christian Furr
+                    </Badge>
+                  </motion.div>
                 )}
 
                 {subscriptionLoading && !hasFreeAccessBySlug ? (
