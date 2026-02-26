@@ -34,6 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AppShell, SidebarSection } from "@/components/layout/app-shell";
 import { PanelLayout, PanelSection } from "@/components/layout/panel-layout";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useHostWebRTC } from "@/hooks/use-webrtc";
 import { useSfuHost } from "@/hooks/use-sfu";
@@ -700,45 +701,60 @@ export default function HostPage() {
   );
 
   const bottomPanel = (
-    <div className="flex flex-row h-full min-h-0">
-      <div className="flex-1 min-w-0 overflow-auto">
-        <PanelSection title="Stream Mode">
-          <StreamModeSelector
-            mode={streamMode}
-            onModeChange={handleModeChange}
-            sfuStatus={streamMode === "sfu" ? sfu.status : undefined}
-            canUseSfu={canUseSfu}
-          />
-        </PanelSection>
-        <div className="border-t border-border" />
-        {showSettingsBlock}
-        <div className="border-t border-border" />
-        <PanelSection>
-          <div className="space-y-1">
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full justify-start text-xs"
-              onClick={handleEndStream}
-            >
-              <StopCircle className="h-3.5 w-3.5" />
-              End Stream
-            </Button>
-            <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
-              <Link href="/viewer">
-                <Monitor className="h-3.5 w-3.5" />
-                Switch to Viewer
-              </Link>
-            </Button>
-          </div>
-        </PanelSection>
-      </div>
-      <div className="w-px shrink-0 bg-border" aria-hidden />
-      <div className="flex-1 min-w-0 overflow-auto border-l border-border">
-        <PanelSection title="Statistics">
-          <StatsPanel webrtcStats={activeStats} />
-        </PanelSection>
-      </div>
+    <div className="flex flex-col h-full min-h-0">
+      <Tabs defaultValue="settings" orientation="horizontal" className="flex flex-col h-full min-h-0">
+        <div className="px-3 py-1.5 border-b border-border shrink-0">
+          <TabsList className="w-full h-7 min-h-7 rounded-lg p-0.5 inline-flex flex-row items-center">
+            <TabsTrigger value="settings" className="flex-1 text-xs px-3 py-1.5 rounded-md h-6 data-[state=active]:shadow-none">
+              Settings
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="flex-1 text-xs px-3 py-1.5 rounded-md h-6 data-[state=active]:shadow-none">
+              Statistics
+            </TabsTrigger>
+          </TabsList>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <TabsContent value="settings" className="h-full mt-0 data-[state=inactive]:hidden">
+            <div className="overflow-auto">
+              <PanelSection title="Stream Mode">
+                <StreamModeSelector
+                  mode={streamMode}
+                  onModeChange={handleModeChange}
+                  sfuStatus={streamMode === "sfu" ? sfu.status : undefined}
+                  canUseSfu={canUseSfu}
+                />
+              </PanelSection>
+              <div className="border-t border-border" />
+              {showSettingsBlock}
+              <div className="border-t border-border" />
+              <PanelSection>
+                <div className="space-y-1">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                    onClick={handleEndStream}
+                  >
+                    <StopCircle className="h-3.5 w-3.5" />
+                    End Stream
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
+                    <Link href="/viewer">
+                      <Monitor className="h-3.5 w-3.5" />
+                      Switch to Viewer
+                    </Link>
+                  </Button>
+                </div>
+              </PanelSection>
+            </div>
+          </TabsContent>
+          <TabsContent value="stats" className="h-full mt-0 data-[state=inactive]:hidden">
+            <div className="p-3 overflow-auto">
+              <StatsPanel webrtcStats={activeStats} />
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 
