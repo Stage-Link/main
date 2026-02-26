@@ -16,6 +16,8 @@ interface AppShellProps {
   sidebar?: ReactNode;
   topBarCenter?: ReactNode;
   topBarRight?: ReactNode;
+  /** Condensed right slot for mobile (e.g. UserButton only). When provided, shown below md instead of topBarRight. */
+  mobileTopBarRight?: ReactNode;
   /** Condensed center content for mobile top bar (e.g. connection status + mode badge). Shown only below md when sidebar exists. */
   mobileTopBarCenter?: ReactNode;
 }
@@ -25,6 +27,7 @@ export function AppShell({
   sidebar,
   topBarCenter,
   topBarRight,
+  mobileTopBarRight,
   mobileTopBarCenter,
 }: AppShellProps) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
@@ -57,13 +60,13 @@ export function AppShell({
           <div className="hidden md:flex items-center gap-3 flex-1 justify-center">{topBarCenter}</div>
         )}
 
-        {/* Right — desktop: full; mobile: drawer toggle when sidebar exists */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right — desktop: full topBarRight; mobile: drawer toggle + compact right (mobileTopBarRight or topBarRight) */}
+        <div className="flex items-center gap-1.5 shrink-0 min-w-0">
           {sidebar && (
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden h-8 w-8"
+              className="md:hidden h-8 w-8 shrink-0"
               onClick={() => setMobileDrawerOpen(true)}
               aria-label="Open menu"
             >
@@ -73,6 +76,11 @@ export function AppShell({
           {topBarRight && (
             <div className="hidden md:flex items-center gap-2">
               {topBarRight}
+            </div>
+          )}
+          {(mobileTopBarRight != null ? mobileTopBarRight : topBarRight) && (
+            <div className="flex md:hidden items-center gap-1.5 shrink-0 min-w-0">
+              {mobileTopBarRight != null ? mobileTopBarRight : topBarRight}
             </div>
           )}
         </div>

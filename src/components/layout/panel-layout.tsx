@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState, useCallback } from "react";
+import { type ReactNode, useState, useCallback, useEffect } from "react";
 import {
   Panel,
   Group,
@@ -27,6 +27,7 @@ import {
   formatShortcut,
   type KeyboardShortcut,
 } from "@/hooks/use-keyboard-shortcuts";
+import { useIsMobile } from "@/hooks/use-media-query";
 
 interface PanelLayoutProps {
   children: ReactNode;
@@ -39,6 +40,8 @@ interface PanelLayoutProps {
   shortcuts?: KeyboardShortcut[];
   showName?: string;
 }
+
+const SHORTCUTS_SEEN_KEY = "stagelink-shortcuts-seen";
 
 function ResizeHandle({ orientation }: { orientation: "horizontal" | "vertical" }) {
   return (
@@ -76,6 +79,27 @@ export function PanelLayout({
   const [bottomPanelVisible, setBottomPanelVisible] = useState(!!bottomPanel);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showShortcutHint, setShowShortcutHint] = useState(false);
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    try {
+      if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(SHORTCUTS_SEEN_KEY) !== "1") {
+        setShowShortcutHint(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const markShortcutsSeen = useCallback(() => {
+    try {
+      sessionStorage.setItem(SHORTCUTS_SEEN_KEY, "1");
+    } catch {
+      // ignore
+    }
+    setShowShortcutHint(false);
+  }, []);
 
   const mainLayout = useDefaultLayout({ id: "stagelink-main" });
   const verticalLayout = useDefaultLayout({ id: "stagelink-vertical" });
@@ -115,7 +139,10 @@ export function PanelLayout({
     {
       key: "?",
       shift: true,
-      action: () => setShowShortcuts((v) => !v),
+      action: () => {
+        markShortcutsSeen();
+        setShowShortcuts((v) => !v);
+      },
       description: "Show keyboard shortcuts",
     },
     ...shortcuts,
@@ -123,8 +150,8 @@ export function PanelLayout({
 
   useKeyboardShortcuts(allShortcuts);
 
-  const hasRightPanel = rightPanel && rightPanelVisible;
-  const hasLeftPanel = leftPanel && leftPanelVisible;
+  const hasRightPanel = rightPanel && rightPanelVisible && !isMobile;
+  const hasLeftPanel = leftPanel && leftPanelVisible && !isMobile;
   const mobilePanel = rightPanel ?? leftPanel;
 
   return (
@@ -208,7 +235,10 @@ export function PanelLayout({
             variant="ghost"
             size="icon-xs"
             className="hidden md:inline-flex"
-            onClick={() => setShowShortcuts((v) => !v)}
+            onClick={() => {
+              markShortcutsSeen();
+              setShowShortcuts((v) => !v);
+            }}
             title="Keyboard shortcuts (?)"
           >
             <Keyboard className="h-3.5 w-3.5" />
@@ -231,6 +261,21 @@ export function PanelLayout({
           )}
         </div>
       </motion.header>
+
+      {showShortcutHint && (
+        <div className="shrink-0 flex items-center justify-between gap-3 px-3 py-2 bg-surface-2/80 border-b border-border text-xs text-muted-foreground">
+          <span>Press <kbd className="font-mono px-1 py-0.5 rounded bg-surface-3 border border-border text-foreground/80">?</kbd> for keyboard shortcuts</span>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="h-6 w-6 shrink-0"
+            onClick={markShortcutsSeen}
+            aria-label="Dismiss"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         <Group
