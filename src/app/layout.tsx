@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { Cormorant_Garamond } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -25,6 +25,13 @@ const baseUrl =
 const title = "Stage Link - Real-Time Stage Monitoring";
 const description =
   "Real-time stage monitoring system for theater crews. Stream your stage camera to crew members with near-zero latency.";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0C0A09",
+};
 
 export const metadata: Metadata = {
   title,
@@ -89,7 +96,7 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning className="bg-[#0C0A09]">
         <body
           className={`${geistSans.variable} ${cormorant.variable} antialiased`}
         >

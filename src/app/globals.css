@@ -132,9 +132,18 @@
   }
   html {
     scroll-behavior: smooth;
+    background: var(--background);
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground font-sans;
+    min-height: 100dvh;
+    min-height: 100vh;
+  }
+  /* Safari: prevent white border/overscroll */
+  html,
+  body {
+    overscroll-behavior: none;
   }
 }
 
