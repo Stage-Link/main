@@ -7,6 +7,7 @@ export const runtime = "edge";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
+/** Apple touch icon — iOS requires PNG. Transparent renders white in Resvg, so we use dark bg. */
 export default async function AppleIcon() {
   const fonts = await getCormorantFont();
   return new ImageResponse(
@@ -17,10 +18,10 @@ export default async function AppleIcon() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "transparent",
+        backgroundColor: "#0C0A09",
       }}
     >
-      <LogoMark size={180} noBorder transparent />
+      <LogoMark size={180} noBorder />
     </div>,
     { ...size, fonts }
   );

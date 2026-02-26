@@ -2,14 +2,25 @@ import { ImageResponse } from "next/og";
 
 import { LogoMark } from "../logo-mark";
 import { getCormorantFont } from "../og-font";
-import { isSafari } from "../icon/utils";
+import { isSafari, safariIconSvg } from "../icon/utils";
 
 export const runtime = "edge";
 
 export async function GET(request: Request) {
   const userAgent = request.headers.get("User-Agent");
-  const transparent = isSafari(userAgent);
+  const useSafariSvg = isSafari(userAgent);
   const size = 64;
+
+  if (useSafariSvg) {
+    const svg = safariIconSvg(size);
+    return new Response(svg, {
+      headers: {
+        "Content-Type": "image/svg+xml",
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  }
+
   const fonts = await getCormorantFont();
   return new ImageResponse(
     <div
@@ -19,10 +30,10 @@ export async function GET(request: Request) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: transparent ? "transparent" : "#0C0A09",
+        backgroundColor: "#0C0A09",
       }}
     >
-      <LogoMark size={size} noBorder transparent={transparent} />
+      <LogoMark size={size} noBorder />
     </div>,
     {
       width: size,
