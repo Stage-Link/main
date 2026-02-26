@@ -9,5 +9,19 @@ export const contentType = "image/png";
 
 export default async function Icon() {
   const fonts = await getCormorantFont();
-  return new ImageResponse(<LogoMark size={128} />, { ...size, fonts });
+  return new ImageResponse(
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#0C0A09",
+      }}
+    >
+      <LogoMark size={128} noBorder />
+    </div>,
+    { ...size, fonts }
+  );
 }
