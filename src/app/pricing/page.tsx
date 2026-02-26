@@ -111,7 +111,12 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-0 text-foreground">
+    <div
+      className="min-h-screen bg-surface-0 text-foreground"
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0 L4 4 M36 0 L40 4 M0 36 L4 40 M36 36 L40 40 M20 0 L24 4 M20 36 L24 40 M0 20 L4 24 M36 20 L40 24' stroke='%23C9A227' stroke-width='0.5' opacity='0.06' fill='none'/%3E%3C/svg%3E")`,
+      }}
+    >
       <header className="border-b border-white/10 px-4 py-3 flex items-center gap-2">
         <Button asChild variant="ghost" size="sm">
           <Link href="/">
@@ -132,13 +137,13 @@ export default function PricingPage() {
         </div>
 
         <div className="flex justify-center mb-10">
-          <div className="inline-flex rounded-lg border border-white/10 bg-surface-2 p-1">
+          <div className="inline-flex rounded-xl border border-gold/30 bg-surface-1 p-1">
             <button
               type="button"
               onClick={() => setBillingPeriod("month")}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
                 billingPeriod === "month"
-                  ? "bg-gold text-black"
+                  ? "bg-gold/15 text-gold shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -147,13 +152,14 @@ export default function PricingPage() {
             <button
               type="button"
               onClick={() => setBillingPeriod("annual")}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
                 billingPeriod === "annual"
-                  ? "bg-gold text-black"
+                  ? "bg-gold/15 text-gold shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Annually
+              Annual
+              <span className="ml-1.5 text-[10px] text-crimson font-semibold">Save 15%</span>
             </button>
           </div>
         </div>
@@ -169,18 +175,18 @@ export default function PricingPage() {
             const priceLabel =
               billingPeriod === "annual" ? `/yr` : `/mo`;
 
-            const cardClassName = `relative rounded-2xl border bg-surface-2 p-6 flex flex-col text-left ${
+            const cardClassName = `relative rounded-2xl border-2 p-8 flex flex-col text-left transition-colors ${
               plan.mostPopular
-                ? "border-gold/50 ring-1 ring-gold/20"
-                : "border-white/10"
+                ? "border-gold bg-card shadow-[0_0_40px_rgba(201,162,39,0.15)] scale-[1.02] lg:scale-105"
+                : "border-border bg-card hover:border-gold/40"
             }`;
 
             return (
               <div key={plan.key} className={cardClassName}>
                 {plan.mostPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="rounded-full bg-gold px-3 py-1 text-xs font-medium text-black">
-                      MOST POPULAR
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                    <span className="rounded-full bg-gold/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-gold">
+                      Most Popular
                     </span>
                   </div>
                 )}
@@ -192,11 +198,14 @@ export default function PricingPage() {
                   {plan.tagline}
                 </p>
 
-                <div className="mt-6 flex items-baseline gap-0.5">
-                  <span className="text-3xl font-semibold text-gold">
+                <div className="mt-6 flex items-baseline gap-1">
+                  <span className="text-4xl font-bold tracking-tight text-foreground">
                     ${price}
                   </span>
                   <span className="text-muted-foreground text-sm">{priceLabel}</span>
+                  {billingPeriod === "annual" && (
+                    <span className="ml-2 text-xs text-muted-foreground">billed annually</span>
+                  )}
                 </div>
 
                 <ul className="mt-6 space-y-3 flex-1">
@@ -220,7 +229,7 @@ export default function PricingPage() {
                       onSubscriptionComplete={() => router.push("/")}
                       newSubscriptionRedirectUrl="/"
                     >
-                      <Button className="w-full bg-gold text-black hover:bg-gold-bright">
+                      <Button className="w-full bg-gold text-primary-foreground hover:bg-gold-bright">
                         {plan.hasTrial
                           ? "Start Free Trial"
                           : billingPeriod === "annual"

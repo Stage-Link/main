@@ -38,7 +38,7 @@ export default function NotFound() {
             variants={fadeUp}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="text-5xl sm:text-6xl font-display font-semibold tracking-tight text-foreground">
+            <h1 className="text-5xl sm:text-6xl font-display-thin text-foreground">
               Stage<span className="text-gold">Link</span>
             </h1>
             <p className="text-6xl sm:text-7xl font-display font-semibold text-gold/90">
@@ -55,7 +55,7 @@ export default function NotFound() {
             <Button
               asChild
               size="lg"
-              className="bg-gold text-black hover:bg-gold-bright font-medium px-8 gap-2"
+              className="bg-gold text-primary-foreground hover:bg-gold-bright font-medium px-8 gap-2"
             >
               <Link href="/">
                 <Home className="h-4 w-4" />

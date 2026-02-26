@@ -150,7 +150,7 @@ export function VideoPlayer({
       className="relative w-full rounded-xl md:rounded-[20px] overflow-hidden shadow-2xl group transition-all duration-300"
       style={{
         background:
-          "linear-gradient(to bottom right, #0a0a0a, #111111, #050505)",
+          "linear-gradient(to bottom right, #1a0808, #200e0e, #0f0505)",
       }}
     >
       <div className="aspect-video relative">

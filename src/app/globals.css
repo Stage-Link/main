@@ -15,21 +15,21 @@
   --crimson: #B71C2E;
   --amber: #F5A623;
 
-  /* Dark-mode semantic — true black */
-  --background: #000000;
-  --foreground: #E8E8E8;
-  --card: #0A0A0A;
-  --card-foreground: #E8E8E8;
-  --popover: #0F0F0F;
-  --popover-foreground: #E8E8E8;
+  /* Dark-mode semantic — warm near-black (DESIGN_GUIDE §1) */
+  --background: #0C0A09;
+  --foreground: #F5F0E8;
+  --card: #161412;
+  --card-foreground: #F5F0E8;
+  --popover: #1C1916;
+  --popover-foreground: #F5F0E8;
   --primary: #C9A227;
-  --primary-foreground: #000000;
+  --primary-foreground: #0C0A09;
   --secondary: #B71C2E;
   --secondary-foreground: #FFFFFF;
-  --muted: #141414;
-  --muted-foreground: #888888;
-  --accent: #1A1A1A;
-  --accent-foreground: #E8E8E8;
+  --muted: #1E1B18;
+  --muted-foreground: #A89B8C;
+  --accent: #2A2520;
+  --accent-foreground: #F5F0E8;
   --destructive: #B71C2E;
   --destructive-foreground: #FFFFFF;
   --border: rgba(255, 255, 255, 0.10);
@@ -41,24 +41,24 @@
   --chart-2: #E8B84B;
   --chart-3: #B71C2E;
   --chart-4: #F5A623;
-  --chart-5: #888888;
+  --chart-5: #A89B8C;
 
   /* Sidebar (maps to surface-1) */
-  --sidebar: #080808;
-  --sidebar-foreground: #E8E8E8;
+  --sidebar: #121010;
+  --sidebar-foreground: #F5F0E8;
   --sidebar-primary: #C9A227;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #1A1A1A;
-  --sidebar-accent-foreground: #E8E8E8;
+  --sidebar-primary-foreground: #0C0A09;
+  --sidebar-accent: #2A2520;
+  --sidebar-accent-foreground: #F5F0E8;
   --sidebar-border: rgba(255, 255, 255, 0.10);
   --sidebar-ring: #C9A227;
 
-  /* Surfaces (layered depth) — neutral black */
-  --surface-0: #000000;
-  --surface-1: #080808;
-  --surface-2: #111111;
-  --surface-3: #1A1A1A;
-  --surface-4: #222222;
+  /* Surfaces (layered depth) — warm near-black (DESIGN_GUIDE §1) */
+  --surface-0: #0C0A09;
+  --surface-1: #121010;
+  --surface-2: #1A1614;
+  --surface-3: #221E1A;
+  --surface-4: #2A2520;
 
   --live-red: #B71C2E;
 }
@@ -136,6 +136,19 @@
 }
 
 /* ============================================================
+   Typography utilities (DESIGN_GUIDE §2)
+   ============================================================ */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-display-thin {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================================
    Animations
    ============================================================ */
 @keyframes live-pulse {
@@ -167,10 +180,10 @@ body::after {
    Utility classes
    ============================================================ */
 .glass {
-  background: rgba(10, 10, 10, 0.95);
+  background: rgba(22, 20, 18, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .glow-gold {
@@ -216,54 +229,54 @@ body::after {
   right: 0;
 }
 
-/* Clerk components — dark/black theme (dropdowns, modals) */
+/* Clerk components — warm dark theme (DESIGN_GUIDE surfaces) */
 .cl-card,
 .cl-modalContent,
 .cl-userButtonPopoverCard,
 .cl-organizationSwitcherPopoverCard {
-  background: #080808 !important;
+  background: #161412 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: none !important;
 }
 .cl-userButtonTrigger,
 .cl-organizationSwitcherTrigger {
-  background: #111111 !important;
+  background: #1A1614 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  color: #E8E8E8 !important;
+  color: #F5F0E8 !important;
 }
 .cl-userButtonTrigger:hover,
 .cl-organizationSwitcherTrigger:hover {
-  background: #1A1A1A !important;
+  background: #221E1A !important;
 }
 .cl-navbarButton {
-  color: #E8E8E8 !important;
+  color: #F5F0E8 !important;
 }
 .cl-dropdownMenuContent {
-  background: #080808 !important;
+  background: #161412 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 .cl-dropdownMenuItem {
-  color: #E8E8E8 !important;
+  color: #F5F0E8 !important;
 }
 .cl-dropdownMenuItem:hover {
-  background: #1A1A1A !important;
+  background: #221E1A !important;
 }
 .cl-dropdownMenuSeparator {
   background: rgba(255, 255, 255, 0.1) !important;
 }
 .cl-badge {
-  background: #1A1A1A !important;
-  color: #E8E8E8 !important;
+  background: #221E1A !important;
+  color: #F5F0E8 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 .cl-formFieldInput {
-  background: #111111 !important;
+  background: #1A1614 !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
-  color: #E8E8E8 !important;
+  color: #F5F0E8 !important;
 }
 .cl-formButtonPrimary {
   background: #C9A227 !important;
-  color: #000000 !important;
+  color: #0C0A09 !important;
 }
 .cl-footerActionLink {
   color: #C9A227 !important;

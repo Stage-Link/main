@@ -73,7 +73,7 @@ export function ChatPanel({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-3 py-2 border-b border-white/10">
-        <h3 className="text-xs font-semibold text-white">Chat</h3>
+        <h3 className="text-xs font-semibold text-foreground">Crew Chat</h3>
       </div>
 
       {/* Username Input */}

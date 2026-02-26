@@ -67,7 +67,8 @@ export default function HomePage() {
         <header className="relative z-10 border-b border-white/[0.06] bg-surface-0/80 backdrop-blur-xl">
           <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-display font-semibold tracking-wide">
+              <span className="flex items-center gap-2 text-sm font-display font-semibold tracking-tight">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-gold animate-live-pulse" aria-hidden />
                 Stage<span className="text-gold">Link</span>
               </span>
               <div className="h-4 w-px bg-white/10" />
@@ -110,7 +111,7 @@ export default function HomePage() {
           >
             {/* Brand */}
             <motion.div className="space-y-4" variants={fadeUp} transition={{ duration: 0.6 }}>
-              <h1 className="text-5xl sm:text-6xl font-display font-semibold tracking-tight text-foreground">
+              <h1 className="text-5xl sm:text-6xl font-display-thin text-foreground">
                 Stage<span className="text-gold">Link</span>
               </h1>
               <p className="text-muted-foreground text-base max-w-sm mx-auto leading-relaxed">
@@ -130,7 +131,7 @@ export default function HomePage() {
                   ].map(({ icon: Icon, label }) => (
                     <div
                       key={label}
-                      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-surface-2/50 border border-white/[0.04]"
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-card/50 border border-border"
                     >
                       <Icon className="h-4 w-4 text-gold/70" strokeWidth={1.5} />
                       <span className="text-[11px] text-muted-foreground">{label}</span>
@@ -139,7 +140,7 @@ export default function HomePage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button asChild size="lg" className="bg-gold text-black hover:bg-gold-bright font-medium px-8">
+                  <Button asChild size="lg" className="bg-gold text-primary-foreground hover:bg-gold-bright font-medium px-8">
                     <Link href="/sign-in">Sign in</Link>
                   </Button>
                   <Button asChild variant="outline" size="lg" className="border-white/10 hover:bg-surface-3">
@@ -149,7 +150,7 @@ export default function HomePage() {
               </motion.div>
             ) : showCreateOrJoinOrg ? (
               <motion.div
-                className="max-w-md mx-auto rounded-2xl bg-surface-1 border border-white/[0.06] p-8 space-y-6"
+                className="max-w-md mx-auto rounded-2xl bg-card border border-border p-8 space-y-6"
                 variants={scaleIn}
                 transition={{ duration: 0.4 }}
               >
@@ -157,7 +158,7 @@ export default function HomePage() {
                   <Building2 className="h-5 w-5 text-gold" strokeWidth={1.5} />
                 </div>
                 <div className="space-y-2">
-                  <h2 className="text-lg font-semibold text-foreground">
+                  <h2 className="text-lg font-display font-semibold text-foreground">
                     Create or join an organization
                   </h2>
                   <p className="text-sm text-muted-foreground leading-relaxed">
@@ -166,7 +167,7 @@ export default function HomePage() {
                   </p>
                 </div>
                 <div className="space-y-3">
-                  <Button asChild className="w-full bg-gold text-black hover:bg-gold-bright gap-2">
+                  <Button asChild className="w-full bg-gold text-primary-foreground hover:bg-gold-bright gap-2">
                     <Link href="/org-select">
                       <Building2 className="h-4 w-4" />
                       Create organization
@@ -225,7 +226,7 @@ export default function HomePage() {
                     {canHost && (
                       <motion.div variants={scaleIn} transition={{ duration: 0.35 }}>
                         <Link href="/host" className="group block">
-                          <div className="relative rounded-2xl border border-white/10 bg-surface-2 p-6 text-center space-y-4 transition-all duration-300 hover:border-gold/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(201,162,39,0.1)]">
+                          <div className="relative rounded-2xl border border-border bg-card p-6 text-center space-y-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-gold/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(201,162,39,0.1)]">
                             <div className="mx-auto w-12 h-12 rounded-xl bg-gold/15 border border-gold/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                               <Radio className="h-5 w-5 text-gold" strokeWidth={1.5} />
                             </div>
@@ -248,7 +249,7 @@ export default function HomePage() {
 
                     <motion.div variants={scaleIn} transition={{ duration: 0.35 }}>
                       <Link href="/viewer" className="group block">
-                        <div className="relative rounded-2xl border border-white/10 bg-surface-2 p-6 text-center space-y-4 transition-all duration-300 hover:border-crimson/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(183,28,46,0.1)]">
+                        <div className="relative rounded-2xl border border-border bg-card p-6 text-center space-y-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-crimson/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(183,28,46,0.1)]">
                           <div className="mx-auto w-12 h-12 rounded-xl bg-crimson/15 border border-crimson/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                             <Monitor className="h-5 w-5 text-crimson" strokeWidth={1.5} />
                           </div>
@@ -270,21 +271,21 @@ export default function HomePage() {
                   </motion.div>
                 ) : organization ? (
                   <motion.div
-                    className="max-w-md mx-auto rounded-2xl bg-surface-1 border border-white/[0.06] p-8 space-y-6"
+                    className="max-w-md mx-auto rounded-2xl bg-card border border-border p-8 space-y-6"
                     initial="hidden"
                     animate="visible"
                     variants={scaleIn}
                     transition={{ duration: 0.4 }}
                   >
                     <div className="space-y-2 text-center">
-                      <h2 className="text-lg font-semibold text-foreground">
+                      <h2 className="text-lg font-display font-semibold text-foreground">
                         A plan is required to stream
                       </h2>
                       <p className="text-sm text-muted-foreground leading-relaxed">
                         Subscribe to Crew, Production, or Showtime to host or view streams.
                       </p>
                     </div>
-                    <Button asChild className="w-full bg-gold text-black hover:bg-gold-bright">
+                    <Button asChild className="w-full bg-gold text-primary-foreground hover:bg-gold-bright">
                       <Link href="/pricing">View plans</Link>
                     </Button>
                   </motion.div>

@@ -92,7 +92,7 @@ export default function ViewerPage() {
             Your organization needs an active subscription to view streams. Subscribe to Crew, Production, or Showtime to get started.
           </p>
         </div>
-        <Button asChild className="bg-gold text-black hover:bg-gold-bright">
+        <Button asChild className="bg-gold text-primary-foreground hover:bg-gold-bright">
           <Link href="/pricing">View plans</Link>
         </Button>
       </div>

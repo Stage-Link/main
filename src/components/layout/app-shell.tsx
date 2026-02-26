@@ -41,9 +41,10 @@ export function AppShell({
         {/* Logo */}
         <Link
           href="/"
-          className="text-sm font-semibold tracking-tight text-foreground hover:text-gold transition-colors shrink-0"
+          className="flex items-center gap-2 text-sm font-display font-semibold tracking-tight text-foreground hover:opacity-80 transition-opacity shrink-0"
         >
-          Stage Link
+          <span className="h-2 w-2 shrink-0 rounded-full bg-gold animate-live-pulse" aria-hidden />
+          Stage<span className="text-gold">Link</span>
         </Link>
 
         {/* Center — desktop only, or mobile condensed when provided */}
@@ -128,7 +129,7 @@ export function SidebarSection({
   return (
     <div className={cn("px-3 py-3 md:py-4 md:px-4", className)}>
       {title && (
-        <h3 className="px-1 mb-2 text-xs font-semibold text-white uppercase tracking-wider">
+        <h3 className="px-1 mb-2 text-xs font-semibold text-foreground uppercase tracking-wider">
           {title}
         </h3>
       )}

@@ -381,7 +381,7 @@ export default function HostPage() {
             Your organization needs an active subscription to host streams. Subscribe to Crew, Production, or Showtime to get started.
           </p>
         </div>
-        <Button asChild className="bg-gold text-black hover:bg-gold-bright">
+        <Button asChild className="bg-gold text-primary-foreground hover:bg-gold-bright">
           <Link href="/pricing">View plans</Link>
         </Button>
       </div>
@@ -427,10 +427,10 @@ export default function HostPage() {
               <Radio className="h-10 w-10 text-gold" />
             </div>
             <div>
-              <h2 className="text-lg font-display text-white font-semibold">
+              <h2 className="text-lg font-display text-foreground font-semibold">
                 Start a Stream
               </h2>
-              <p className="text-sm text-white/50 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Create a new live stream for your organization.
                 {lobby.streams.length > 0 && (
                   <span className="text-gold">
@@ -450,8 +450,8 @@ export default function HostPage() {
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-                      <span className="text-xs text-white truncate">{s.cameraName}</span>
-                      <span className="text-[10px] text-white/40 truncate">{s.showName}</span>
+                      <span className="text-xs text-foreground truncate">{s.cameraName}</span>
+                      <span className="text-[10px] text-muted-foreground truncate">{s.showName}</span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Badge variant="stat-muted" className="text-[9px] px-1 py-0 h-4">
