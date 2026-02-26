@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { useOrganization, useUser, UserButton } from "@clerk/nextjs";
+import { useState, useCallback, useMemo, useEffect, useRef, Suspense } from "react";
+import { useOrganization, useUser, UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 import { useSubscription } from "@clerk/nextjs/experimental";
-import { useRouter } from "next/navigation";
-import { OrganizationSwitcher } from "@clerk/nextjs";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ConnectionStatus } from "@/components/layout/connection-status";
@@ -13,16 +12,19 @@ import { Badge } from "@/components/ui/badge";
 import { PanelLayout, PanelSection } from "@/components/layout/panel-layout";
 import { AppShell, SidebarSection } from "@/components/layout/app-shell";
 import { StreamGrid } from "@/components/video/stream-grid";
+import { StreamGridSkeleton } from "@/components/video/stream-grid-skeleton";
 import { StreamSelector } from "@/components/video/stream-selector";
 import { CrewChatPanel } from "@/components/chat/crew-chat-panel";
 import { useLobby } from "@/hooks/use-lobby";
 import { useParty, type SignalMessage } from "@/hooks/use-party";
-import { useIsMobilePortrait } from "@/hooks/use-media-query";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { MobileWarning } from "@/components/layout/mobile-warning";
 import { hasStreamAccess, hasFullAccessBySlug } from "@/lib/billing/plans";
 import { GRID_CELL_COUNTS, type GridLayout } from "@/lib/streams/types";
 import type { KeyboardShortcut } from "@/hooks/use-keyboard-shortcuts";
-import { Radio, ArrowLeftRight } from "lucide-react";
+import { toast } from "sonner";
+import { ErrorState } from "@/components/error-state";
+import { Radio, ArrowLeftRight, StopCircle } from "lucide-react";
 
 interface ChatMessage {
   text: string;
@@ -30,14 +32,17 @@ interface ChatMessage {
   timestamp: string;
 }
 
-export default function ViewerPage() {
+const LAST_STREAM_KEY = "stagelink-last-stream";
+
+function ViewerPageContent() {
   const { organization, isLoaded } = useOrganization();
   const { user } = useUser();
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription({
     for: "organization",
   });
   const router = useRouter();
-  const isMobilePortrait = useIsMobilePortrait();
+  const searchParams = useSearchParams();
+  const isMobile = useIsMobile();
 
   const lobby = useLobby({
     orgId: organization?.id ?? "",
@@ -48,6 +53,10 @@ export default function ViewerPage() {
   const [gridLayout] = useState<GridLayout>("1x1");
   const [globalMessages, setGlobalMessages] = useState<ChatMessage[]>([]);
   const [streamMessages, setStreamMessages] = useState<ChatMessage[]>([]);
+  const prevConnectionStatusRef = useRef<"connected" | "disconnected" | "error" | "connecting" | "reconnecting">("disconnected");
+  const prevStreamIdsRef = useRef<Set<string>>(new Set());
+  const hasAppliedStreamParamRef = useRef(false);
+  const hasRestoredFromStorageRef = useRef(false);
 
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
@@ -74,6 +83,9 @@ export default function ViewerPage() {
 
   const activeStreamId = selectedStreamIds[0] ?? lobby.streams[0]?.streamId ?? "";
   const activeStreamInfo = lobby.streams.find((s) => s.streamId === activeStreamId);
+  const streamEnded =
+    activeStreamId !== "" && !lobby.streams.some((s) => s.streamId === activeStreamId);
+  const lobbyDisconnected = lobby.connectionStatus !== "connected";
 
   const globalRoom = organization?.id ? `${organization.id}:global` : "";
   const streamRoom = activeStreamId && organization?.id
@@ -135,8 +147,71 @@ export default function ViewerPage() {
   );
 
   useEffect(() => {
+    const streamParam = searchParams.get("stream");
+    if (
+      !hasAppliedStreamParamRef.current &&
+      streamParam &&
+      organization?.id &&
+      lobby.streams.some((s) => s.streamId === streamParam)
+    ) {
+      hasAppliedStreamParamRef.current = true;
+      setSelectedStreamIds([streamParam]);
+    }
+  }, [searchParams, organization?.id, lobby.streams]);
+
+  useEffect(() => {
+    const streamParam = searchParams.get("stream");
+    if (
+      streamParam ||
+      hasRestoredFromStorageRef.current ||
+      !organization?.id ||
+      lobby.streams.length === 0
+    ) {
+      return;
+    }
+    try {
+      const lastId = localStorage.getItem(`${LAST_STREAM_KEY}-${organization.id}`);
+      if (lastId && lobby.streams.some((s) => s.streamId === lastId)) {
+        hasRestoredFromStorageRef.current = true;
+        setSelectedStreamIds([lastId]);
+      }
+    } catch {
+      // ignore
+    }
+  }, [searchParams, organization?.id, lobby.streams]);
+
+  useEffect(() => {
+    const id = selectedStreamIds[0];
+    if (organization?.id && id) {
+      try {
+        localStorage.setItem(`${LAST_STREAM_KEY}-${organization.id}`, id);
+      } catch {
+        // ignore
+      }
+    }
+  }, [organization?.id, selectedStreamIds]);
+
+  useEffect(() => {
     setStreamMessages([]);
   }, [activeStreamId]);
+
+  useEffect(() => {
+    const prev = prevConnectionStatusRef.current;
+    prevConnectionStatusRef.current = lobby.connectionStatus;
+    if (prev === "reconnecting" && lobby.connectionStatus === "connected") {
+      toast.success("Reconnected");
+    }
+  }, [lobby.connectionStatus]);
+
+  useEffect(() => {
+    const currentIds = new Set(lobby.streams.map((s) => s.streamId));
+    const hadActive = activeStreamId && prevStreamIdsRef.current.has(activeStreamId);
+    const activeGone = hadActive && !currentIds.has(activeStreamId);
+    prevStreamIdsRef.current = currentIds;
+    if (activeGone) {
+      toast.info("Host ended the stream");
+    }
+  }, [lobby.streams, activeStreamId]);
 
   const viewerShortcuts: KeyboardShortcut[] = useMemo(() => {
     if (lobby.streams.length < 2) return [];
@@ -191,14 +266,11 @@ export default function ViewerPage() {
   if (!hasStreamAccess(subscription, organization?.slug)) {
     return (
       <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center gap-6 px-6">
-        <div className="max-w-md text-center space-y-2">
-          <h2 className="text-lg font-display font-semibold text-foreground">
-            A plan is required to view streams
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Your organization needs an active subscription to view streams. Subscribe to Crew, Production, or Showtime to get started.
-          </p>
-        </div>
+        <ErrorState
+          title="A plan is required to view streams"
+          description="Your organization needs an active subscription to view streams. Subscribe to Crew, Production, or Showtime to get started."
+          showGoHome={false}
+        />
         <Button asChild className="bg-gold text-primary-foreground hover:bg-gold-bright">
           <Link href="/pricing">View plans</Link>
         </Button>
@@ -206,7 +278,7 @@ export default function ViewerPage() {
     );
   }
 
-  const leftPanel = (
+  const rightPanel = (
     <div className="flex flex-col h-full min-h-0">
       <CrewChatPanel
         displayName={displayName}
@@ -221,54 +293,61 @@ export default function ViewerPage() {
     </div>
   );
 
-  const rightPanel = (
-    <>
-      <PanelSection title="Live Streams">
-        <StreamSelector
-          streams={lobby.streams}
-          selectedStreamIds={selectedStreamIds}
-          onToggleStream={handleToggleStream}
-          maxSelectable={maxSelectable}
-        />
-      </PanelSection>
-      {lobby.streams.length > 1 && selectedStreamIds.length > 0 && (
-        <>
-          <div className="border-t border-border" />
-          <PanelSection title="Quick Switch">
-            <div className="space-y-1">
-              {lobby.streams
-                .filter((s) => !selectedStreamIds.includes(s.streamId))
-                .map((stream) => (
-                  <button
-                    key={stream.streamId}
-                    type="button"
-                    onClick={() => setSelectedStreamIds([stream.streamId])}
-                    className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
-                  >
-                    <ArrowLeftRight className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{stream.cameraName}</span>
-                  </button>
-                ))}
-            </div>
-          </PanelSection>
-        </>
-      )}
-      <div className="mt-auto border-t border-border">
-        <PanelSection>
-          <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
-            <Link href="/">
-              <Radio className="h-3.5 w-3.5" />
-              Back to Home
-            </Link>
-          </Button>
+  const bottomPanel = (
+    <div className="flex flex-col h-full overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto">
+        <PanelSection title="Live Streams">
+          <StreamSelector
+            streams={lobby.streams}
+            selectedStreamIds={selectedStreamIds}
+            onToggleStream={handleToggleStream}
+            maxSelectable={maxSelectable}
+          />
         </PanelSection>
+        {lobby.streams.length > 1 && selectedStreamIds.length > 0 && (
+          <>
+            <div className="border-t border-border" />
+            <PanelSection title="Quick Switch">
+              <div className="space-y-1">
+                {lobby.streams
+                  .filter((s) => !selectedStreamIds.includes(s.streamId))
+                  .map((stream) => (
+                    <button
+                      key={stream.streamId}
+                      type="button"
+                      onClick={() => setSelectedStreamIds([stream.streamId])}
+                      className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      <ArrowLeftRight className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{stream.cameraName}</span>
+                    </button>
+                  ))}
+              </div>
+            </PanelSection>
+          </>
+        )}
+        <div className="border-t border-border">
+          <PanelSection>
+            <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
+              <Link href="/">
+                <Radio className="h-3.5 w-3.5" />
+                Back to Home
+              </Link>
+            </Button>
+          </PanelSection>
+        </div>
       </div>
-    </>
+    </div>
   );
 
   const topBarCenter = (
     <>
       <ConnectionStatus status={lobby.connectionStatus} />
+      {activeStreamInfo != null && (
+        <span className="text-[11px] text-muted-foreground tabular-nums">
+          {activeStreamInfo.viewerCount + 1} online
+        </span>
+      )}
       <Badge variant="stat-muted">
         <Radio className="h-3 w-3" />
         {lobby.streams.length} live
@@ -289,7 +368,14 @@ export default function ViewerPage() {
     </>
   );
 
-  if (isMobilePortrait) {
+  const mobileTopBarRight = (
+    <>
+      <LiveClock />
+      <UserButton />
+    </>
+  );
+
+  if (isMobile) {
     return (
       <AppShell
         sidebar={
@@ -316,17 +402,51 @@ export default function ViewerPage() {
         }
         topBarCenter={topBarCenter}
         topBarRight={topBarRight}
+        mobileTopBarRight={mobileTopBarRight}
         mobileTopBarCenter={topBarCenter}
       >
         <div className="h-full flex flex-col p-2 overflow-y-auto">
           <MobileWarning />
           <div className="flex-1 min-h-0 mt-2">
-            <StreamGrid
-              streams={lobby.streams}
-              orgId={organization.id}
-              selectedStreamIds={selectedStreamIds}
-              onSelectedStreamIdsChange={setSelectedStreamIds}
-            />
+            {lobbyDisconnected ? (
+              <StreamGridSkeleton />
+            ) : streamEnded ? (
+              <div className="flex-1 flex items-center justify-center p-4">
+                <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4 max-w-sm">
+                  <StopCircle className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <h3 className="text-base font-display font-semibold text-foreground">
+                    Stream ended
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    The host has ended this stream.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-white/10"
+                      onClick={() =>
+                        setSelectedStreamIds(
+                          lobby.streams.length ? [lobby.streams[0].streamId] : [],
+                        )
+                      }
+                    >
+                      Return to lobby
+                    </Button>
+                    <Button asChild size="sm" className="bg-gold text-primary-foreground hover:bg-gold-bright">
+                      <Link href="/">Back to home</Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <StreamGrid
+                streams={lobby.streams}
+                orgId={organization.id}
+                selectedStreamIds={selectedStreamIds}
+                onSelectedStreamIdsChange={setSelectedStreamIds}
+              />
+            )}
           </div>
           <div className="shrink-0 flex flex-col min-h-[10rem] max-h-[36vh] mt-3 rounded-xl border border-border bg-surface-1 overflow-hidden">
             <CrewChatPanel
@@ -347,8 +467,9 @@ export default function ViewerPage() {
 
   return (
     <PanelLayout
-      leftPanel={leftPanel}
+      leftPanel={undefined}
       rightPanel={rightPanel}
+      bottomPanel={lobby.streams.length > 0 ? bottomPanel : undefined}
       topBarCenter={topBarCenter}
       topBarRight={topBarRight}
       mobileTopBarCenter={topBarCenter}
@@ -357,14 +478,61 @@ export default function ViewerPage() {
     >
       <div className="h-full flex flex-col p-2 md:p-4">
         <div className="flex-1 min-h-0">
-          <StreamGrid
-            streams={lobby.streams}
-            orgId={organization.id}
-            selectedStreamIds={selectedStreamIds}
-            onSelectedStreamIdsChange={setSelectedStreamIds}
-          />
+          {lobbyDisconnected ? (
+            <StreamGridSkeleton />
+          ) : streamEnded ? (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4 max-w-sm">
+                <StopCircle className="h-10 w-10 text-muted-foreground mx-auto" />
+                <h3 className="text-base font-display font-semibold text-foreground">
+                  Stream ended
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  The host has ended this stream.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-white/10"
+                    onClick={() =>
+                      setSelectedStreamIds(
+                        lobby.streams.length ? [lobby.streams[0].streamId] : [],
+                      )
+                    }
+                  >
+                    Return to lobby
+                  </Button>
+                  <Button asChild size="sm" className="bg-gold text-primary-foreground hover:bg-gold-bright">
+                    <Link href="/">Back to home</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <StreamGrid
+              streams={lobby.streams}
+              orgId={organization.id}
+              selectedStreamIds={selectedStreamIds}
+              onSelectedStreamIdsChange={setSelectedStreamIds}
+            />
+          )}
         </div>
       </div>
     </PanelLayout>
+  );
+}
+
+export default function ViewerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-surface-0 flex items-center justify-center text-muted-foreground text-sm">
+          Loading…
+        </div>
+      }
+    >
+      <ViewerPageContent />
+    </Suspense>
   );
 }
