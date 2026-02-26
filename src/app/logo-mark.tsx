@@ -5,11 +5,14 @@ export function LogoMark({
   size,
   fontFamily = CORMORANT_FONT_NAME,
   noBorder = false,
+  transparent = false,
 }: {
   size: number;
   fontFamily?: string;
   /** Omit border for favicon to avoid white artifact in Safari */
   noBorder?: boolean;
+  /** Transparent bg, gold SL + red dot only — for Safari favicon */
+  transparent?: boolean;
 }) {
   const stroke = Math.max(1, Math.floor(size / 48));
   const fontSize = Math.floor(size * 0.5);
@@ -22,9 +25,9 @@ export function LogoMark({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#0C0A09",
-        borderRadius: Math.floor(size / 6),
-        ...(noBorder ? {} : { border: `${stroke}px solid rgba(201, 162, 39, 0.4)` }),
+        backgroundColor: transparent ? "transparent" : "#0C0A09",
+        borderRadius: transparent ? 0 : Math.floor(size / 6),
+        ...(noBorder || transparent ? {} : { border: `${stroke}px solid rgba(201, 162, 39, 0.4)` }),
       }}
     >
       <span
