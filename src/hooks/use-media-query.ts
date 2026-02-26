@@ -22,6 +22,7 @@ export function useMediaQuery(query: string): boolean {
 
 const MOBILE_QUERY = "(max-width: 767px)";
 const MOBILE_PORTRAIT_QUERY = "(max-width: 767px) and (orientation: portrait)";
+const MOBILE_LANDSCAPE_QUERY = "(max-width: 767px) and (orientation: landscape)";
 
 /** True when viewport width is at most 767px. */
 export function useIsMobile(): boolean {
@@ -31,4 +32,9 @@ export function useIsMobile(): boolean {
 /** True when viewport is mobile and in portrait orientation. */
 export function useIsMobilePortrait(): boolean {
   return useMediaQuery(MOBILE_PORTRAIT_QUERY);
+}
+
+/** True when viewport is mobile and in landscape orientation. */
+export function useIsMobileLandscape(): boolean {
+  return useMediaQuery(MOBILE_LANDSCAPE_QUERY);
 }
