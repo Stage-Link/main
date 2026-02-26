@@ -50,13 +50,13 @@ function ResizeHandle({ orientation }: { orientation: "horizontal" | "vertical" 
         "group relative flex items-center justify-center transition-colors",
         orientation === "horizontal"
           ? "w-1.5 data-[separator]:hover:w-2 data-[separator]:active:w-2 hover:bg-gold/10 active:bg-gold/20"
-          : "h-1.5 data-[separator]:hover:h-2 data-[separator]:active:h-2 hover:bg-gold/10 active:bg-gold/20"
+          : "h-0.5 data-[separator]:hover:h-1 data-[separator]:active:h-1 hover:bg-gold/10 active:bg-gold/20"
       )}
     >
       <div
         className={cn(
           "rounded-full bg-muted-foreground/20 group-hover:bg-gold/40 group-active:bg-gold/60 transition-colors",
-          orientation === "horizontal" ? "h-8 w-0.5" : "w-8 h-0.5"
+          orientation === "horizontal" ? "h-8 w-0.5" : "w-4 h-px"
         )}
       />
     </Separator>
