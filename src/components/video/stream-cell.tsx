@@ -114,6 +114,7 @@ export function StreamCell({
   const activeLoading = isSfuMode
     ? sfuViewer.status === "connecting" || sfuViewer.status === "disconnected"
     : webrtc.loading;
+  const latency = isSfuMode ? sfuViewer.latency : webrtc.latency;
 
   if (roomFull) {
     return (
@@ -135,7 +136,7 @@ export function StreamCell({
       <VideoPlayer
         stream={activeStream}
         loading={activeLoading}
-        hostOffline={!hostOnline}
+        hostOffline={!hostOnline && !activeStream}
         cameraName={streamInfo.cameraName}
       />
 
@@ -168,6 +169,15 @@ export function StreamCell({
           </div>
         </div>
       </div>
+
+      {/* Latency pill — always visible when available */}
+      {latency != null && (
+        <div className="absolute top-2 right-2 z-[5] pointer-events-none">
+          <span className="rounded bg-black/60 backdrop-blur-sm px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono tabular-nums">
+            ~{latency}ms
+          </span>
+        </div>
+      )}
 
       {/* Focus/unfocus button */}
       <div className="absolute top-2 right-2 z-[6] opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-auto">

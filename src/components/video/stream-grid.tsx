@@ -141,11 +141,10 @@ export function StreamGrid({
               <path d="M55 10 L48 55 L72 55 L65 10 Z" fill="currentColor" opacity="0.08" />
             </svg>
             <p className="text-foreground/70 text-sm font-display font-semibold">
-              The stage is empty
+              No active streams
             </p>
             <p className="text-muted-foreground text-xs leading-relaxed">
-              No live streams in this organization right now.
-              This page updates automatically when a stream begins.
+              Ask your host to go live. This page updates automatically when a stream begins.
             </p>
             <div className="flex items-center gap-2 mt-1">
               <span className="w-1.5 h-1.5 rounded-full bg-gold/30 animate-pulse" />

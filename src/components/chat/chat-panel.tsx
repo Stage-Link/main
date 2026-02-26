@@ -69,6 +69,11 @@ export function ChatPanel({
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-grow" ref={scrollRef}>
         <div className="space-y-2.5 p-3">
+          {messages.length === 0 && (
+            <p className="text-[11px] text-muted-foreground/80 text-center py-4">
+              No messages yet. Say something to your crew.
+            </p>
+          )}
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => {
               const time = new Date(msg.timestamp).toLocaleTimeString([], {

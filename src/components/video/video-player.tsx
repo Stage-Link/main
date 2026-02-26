@@ -99,7 +99,14 @@ export function VideoPlayer({
   // Fullscreen handling (standard + webkit for Safari; iOS may only support video.webkitEnterFullscreen)
   useEffect(() => {
     function onFullscreenChange() {
-      setIsFullscreen(!!(document.fullscreenElement ?? (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement));
+      const isFs = !!(document.fullscreenElement ?? (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement);
+      setIsFullscreen(isFs);
+      // When exiting fullscreen, resume playback to prevent video freeze
+      if (!isFs) {
+        requestAnimationFrame(() => {
+          videoRef.current?.play().catch(() => {});
+        });
+      }
     }
     document.addEventListener("fullscreenchange", onFullscreenChange);
     document.addEventListener("webkitfullscreenchange", onFullscreenChange);
