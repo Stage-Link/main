@@ -17,7 +17,7 @@ import { StreamSelector } from "@/components/video/stream-selector";
 import { CrewChatPanel } from "@/components/chat/crew-chat-panel";
 import { useLobby } from "@/hooks/use-lobby";
 import { useParty, type SignalMessage } from "@/hooks/use-party";
-import { useIsMobile } from "@/hooks/use-media-query";
+import { useIsMobile, useIsMobileLandscape } from "@/hooks/use-media-query";
 import { MobileWarning } from "@/components/layout/mobile-warning";
 import { hasStreamAccess, hasFullAccessBySlug } from "@/lib/billing/plans";
 import { GRID_CELL_COUNTS, type GridLayout } from "@/lib/streams/types";
@@ -43,6 +43,7 @@ function ViewerPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
+  const isMobileLandscape = useIsMobileLandscape();
 
   const lobby = useLobby({
     orgId: organization?.id ?? "",
@@ -345,7 +346,7 @@ function ViewerPageContent() {
       <ConnectionStatus status={lobby.connectionStatus} />
       {activeStreamInfo != null && (
         <span className="text-[11px] text-muted-foreground tabular-nums">
-          {activeStreamInfo.viewerCount + 1} online
+          {activeStreamInfo.viewerCount} watching
         </span>
       )}
       <Badge variant="stat-muted">
@@ -370,8 +371,18 @@ function ViewerPageContent() {
 
   const mobileTopBarRight = (
     <>
-      <LiveClock />
       <UserButton />
+    </>
+  );
+
+  /** Condensed center for mobile: status + single "N live" label. */
+  const mobileTopBarCenter = (
+    <>
+      <ConnectionStatus status={lobby.connectionStatus} />
+      <Badge variant="stat-muted" className="text-xs">
+        <Radio className="h-3 w-3" />
+        {lobby.streams.length} live
+      </Badge>
     </>
   );
 
@@ -403,64 +414,125 @@ function ViewerPageContent() {
         topBarCenter={topBarCenter}
         topBarRight={topBarRight}
         mobileTopBarRight={mobileTopBarRight}
-        mobileTopBarCenter={topBarCenter}
+        mobileTopBarCenter={mobileTopBarCenter}
       >
-        <div className="h-full flex flex-col p-2 overflow-y-auto">
-          <MobileWarning />
-          <div className="flex-1 min-h-0 mt-2">
-            {lobbyDisconnected ? (
-              <StreamGridSkeleton />
-            ) : streamEnded ? (
-              <div className="flex-1 flex items-center justify-center p-4">
-                <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4 max-w-sm">
-                  <StopCircle className="h-10 w-10 text-muted-foreground mx-auto" />
-                  <h3 className="text-base font-display font-semibold text-foreground">
-                    Stream ended
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    The host has ended this stream.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-white/10"
-                      onClick={() =>
-                        setSelectedStreamIds(
-                          lobby.streams.length ? [lobby.streams[0].streamId] : [],
-                        )
-                      }
-                    >
-                      Return to lobby
-                    </Button>
-                    <Button asChild size="sm" className="bg-gold text-primary-foreground hover:bg-gold-bright">
-                      <Link href="/">Back to home</Link>
-                    </Button>
+        {isMobileLandscape ? (
+          <div className="h-full flex flex-row flex-1 min-h-0 overflow-hidden p-1.5">
+            <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
+              {lobbyDisconnected ? (
+                <StreamGridSkeleton />
+              ) : streamEnded ? (
+                <div className="flex-1 flex items-center justify-center p-4">
+                  <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4 max-w-sm">
+                    <StopCircle className="h-10 w-10 text-muted-foreground mx-auto" />
+                    <h3 className="text-base font-display font-semibold text-foreground">
+                      Stream ended
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      The host has ended this stream.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-white/10"
+                        onClick={() =>
+                          setSelectedStreamIds(
+                            lobby.streams.length ? [lobby.streams[0].streamId] : [],
+                          )
+                        }
+                      >
+                        Return to lobby
+                      </Button>
+                      <Button asChild size="sm" className="bg-gold text-primary-foreground hover:bg-gold-bright">
+                        <Link href="/">Back to home</Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <StreamGrid
-                streams={lobby.streams}
-                orgId={organization.id}
-                selectedStreamIds={selectedStreamIds}
-                onSelectedStreamIdsChange={setSelectedStreamIds}
+              ) : (
+                <StreamGrid
+                  streams={lobby.streams}
+                  orgId={organization.id}
+                  selectedStreamIds={selectedStreamIds}
+                  onSelectedStreamIdsChange={setSelectedStreamIds}
+                />
+              )}
+            </div>
+            <div className="w-px shrink-0 bg-border" aria-hidden />
+            <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col border border-border rounded-xl bg-surface-1">
+              <CrewChatPanel
+                displayName={displayName}
+                globalMessages={globalMessages}
+                onGlobalSend={handleSendGlobalMessage}
+                streamMessages={activeStreamId ? streamMessages : undefined}
+                onStreamSend={activeStreamId ? handleSendStreamMessage : undefined}
+                streamName={activeStreamInfo?.cameraName}
+                globalConnected={globalParty.connectionStatus === "connected"}
+                streamConnected={activeStreamId ? streamParty.connectionStatus === "connected" : false}
               />
-            )}
+            </div>
           </div>
-          <div className="shrink-0 flex flex-col min-h-[10rem] max-h-[36vh] mt-3 rounded-xl border border-border bg-surface-1 overflow-hidden">
-            <CrewChatPanel
-              displayName={displayName}
-              globalMessages={globalMessages}
-              onGlobalSend={handleSendGlobalMessage}
-              streamMessages={activeStreamId ? streamMessages : undefined}
-              onStreamSend={activeStreamId ? handleSendStreamMessage : undefined}
-              streamName={activeStreamInfo?.cameraName}
-              globalConnected={globalParty.connectionStatus === "connected"}
-              streamConnected={activeStreamId ? streamParty.connectionStatus === "connected" : false}
-            />
+        ) : (
+          <div className="h-full flex flex-col overflow-hidden p-1.5">
+            <MobileWarning />
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="shrink-0 w-full aspect-video min-h-0 overflow-hidden rounded-t-xl bg-black/20">
+                {lobbyDisconnected ? (
+                  <StreamGridSkeleton />
+                ) : streamEnded ? (
+                  <div className="h-full flex items-center justify-center p-4">
+                    <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4 max-w-sm">
+                      <StopCircle className="h-10 w-10 text-muted-foreground mx-auto" />
+                      <h3 className="text-base font-display font-semibold text-foreground">
+                        Stream ended
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        The host has ended this stream.
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-white/10"
+                          onClick={() =>
+                            setSelectedStreamIds(
+                              lobby.streams.length ? [lobby.streams[0].streamId] : [],
+                            )
+                          }
+                        >
+                          Return to lobby
+                        </Button>
+                        <Button asChild size="sm" className="bg-gold text-primary-foreground hover:bg-gold-bright">
+                          <Link href="/">Back to home</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <StreamGrid
+                    streams={lobby.streams}
+                    orgId={organization.id}
+                    selectedStreamIds={selectedStreamIds}
+                    onSelectedStreamIdsChange={setSelectedStreamIds}
+                  />
+                )}
+              </div>
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col border border-border border-t-0 rounded-b-xl bg-surface-1">
+                <CrewChatPanel
+                  displayName={displayName}
+                  globalMessages={globalMessages}
+                  onGlobalSend={handleSendGlobalMessage}
+                  streamMessages={activeStreamId ? streamMessages : undefined}
+                  onStreamSend={activeStreamId ? handleSendStreamMessage : undefined}
+                  streamName={activeStreamInfo?.cameraName}
+                  globalConnected={globalParty.connectionStatus === "connected"}
+                  streamConnected={activeStreamId ? streamParty.connectionStatus === "connected" : false}
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </AppShell>
     );
   }
