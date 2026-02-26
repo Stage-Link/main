@@ -17,10 +17,10 @@ export default async function AppleIcon() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#0C0A09",
+        backgroundColor: "#C9A227",
       }}
     >
-      <LogoMark size={180} noBorder />
+      <LogoMark size={180} noBorder bright />
     </div>,
     { ...size, fonts }
   );

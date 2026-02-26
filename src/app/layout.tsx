@@ -36,6 +36,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title,
   description,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Stage Link",
+  },
   icons: {
     icon: [
       { url: "/icon", sizes: "128x128", type: "image/png" },
