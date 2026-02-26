@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { hasFullAccessBySlug } from "@/lib/billing/plans";
 
 const CALLS_API = "https://rtc.live.cloudflare.com/apps";
 
@@ -17,13 +18,15 @@ const CALLS_API = "https://rtc.live.cloudflare.com/apps";
  * }
  */
 export async function POST(request: Request) {
-  const { orgId, has } = await auth();
+  const { orgId, orgSlug, has } = await auth();
 
   if (!orgId) {
     return NextResponse.json({ error: "No organization" }, { status: 403 });
   }
 
-  if (!has({ feature: "sfu_access" })) {
+  const sfuAllowed =
+    has({ feature: "sfu_access" }) || hasFullAccessBySlug(orgSlug ?? undefined);
+  if (!sfuAllowed) {
     return NextResponse.json(
       { error: "SFU access requires a Production or Showtime plan" },
       { status: 403 },
