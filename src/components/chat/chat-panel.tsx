@@ -14,12 +14,10 @@ interface ChatMessage {
 
 interface ChatPanelProps {
   messages: ChatMessage[];
-  username: string;
-  onUsernameChange: (username: string) => void;
+  displayName: string;
   onSendMessage: (text: string) => void;
 }
 
-// Role-based name colors per design guide
 function getNameColor(sender: string, index: number): string {
   const lower = sender.toLowerCase();
   if (lower.includes("sm") || lower.includes("stage") || lower.includes("lx") || lower.includes("light")) {
@@ -28,7 +26,6 @@ function getNameColor(sender: string, index: number): string {
   if (lower.includes("audio") || lower.includes("host") || lower.includes("fx")) {
     return "text-crimson";
   }
-  // Alternate gold/crimson for default crew
   return index % 2 === 0 ? "text-gold" : "text-crimson";
 }
 
@@ -40,8 +37,7 @@ const messageSlide = {
 
 export function ChatPanel({
   messages,
-  username,
-  onUsernameChange,
+  displayName,
   onSendMessage,
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -71,22 +67,6 @@ export function ChatPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-3 py-2 border-b border-white/10">
-        <h3 className="text-xs font-semibold text-foreground">Crew Chat</h3>
-      </div>
-
-      {/* Username Input */}
-      <div className="px-3 py-2 border-b border-white/[0.06]">
-        <Input
-          placeholder="Your name..."
-          value={username}
-          onChange={(e) => onUsernameChange(e.target.value)}
-          className="h-7 text-[10px] bg-white/5 border-white/10 placeholder:text-white/40"
-        />
-      </div>
-
-      {/* Messages */}
       <ScrollArea className="flex-grow" ref={scrollRef}>
         <div className="space-y-2.5 p-3">
           <AnimatePresence initial={false}>
@@ -118,14 +98,13 @@ export function ChatPanel({
         </div>
       </ScrollArea>
 
-      {/* Message Input */}
-      <div className="px-3 py-2 border-t border-white/10">
+      <div className="px-3 py-2 border-t border-border shrink-0">
         <div className="flex gap-1.5">
           <Input
             ref={inputRef}
-            placeholder="Type a message..."
+            placeholder={`Message as ${displayName || "..."}`}
             onKeyDown={handleKeyPress}
-            className="h-7 text-[10px] bg-white/5 border-white/10 placeholder:text-white/40"
+            className="h-7 text-[10px] bg-white/5 border-white/10 placeholder:text-muted-foreground"
           />
           <button
             onClick={handleSend}

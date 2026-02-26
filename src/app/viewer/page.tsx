@@ -14,7 +14,7 @@ import { PanelLayout, PanelSection } from "@/components/layout/panel-layout";
 import { AppShell, SidebarSection } from "@/components/layout/app-shell";
 import { StreamGrid } from "@/components/video/stream-grid";
 import { StreamSelector } from "@/components/video/stream-selector";
-import { ChatPanel } from "@/components/chat/chat-panel";
+import { CrewChatPanel } from "@/components/chat/crew-chat-panel";
 import { useLobby } from "@/hooks/use-lobby";
 import { useParty, type SignalMessage } from "@/hooks/use-party";
 import { useIsMobilePortrait } from "@/hooks/use-media-query";
@@ -46,16 +46,16 @@ export default function ViewerPage() {
 
   const [selectedStreamIds, setSelectedStreamIds] = useState<string[]>([]);
   const [gridLayout] = useState<GridLayout>("1x1");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [username, setUsername] = useState("");
+  const [globalMessages, setGlobalMessages] = useState<ChatMessage[]>([]);
+  const [streamMessages, setStreamMessages] = useState<ChatMessage[]>([]);
+
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    (user?.username as string) ||
+    user?.primaryEmailAddress?.emailAddress ||
+    "Viewer";
 
   const maxSelectable = GRID_CELL_COUNTS[gridLayout];
-
-  useEffect(() => {
-    if (user && !username) {
-      setUsername(user.firstName ?? user.username ?? "Viewer");
-    }
-  }, [user, username]);
 
   const handleToggleStream = useCallback(
     (streamId: string) => {
@@ -72,16 +72,29 @@ export default function ViewerPage() {
     [maxSelectable],
   );
 
-  // Connect to the first selected stream's room for chat
   const activeStreamId = selectedStreamIds[0] ?? lobby.streams[0]?.streamId ?? "";
-  const chatRoom = activeStreamId && organization?.id
+  const activeStreamInfo = lobby.streams.find((s) => s.streamId === activeStreamId);
+
+  const globalRoom = organization?.id ? `${organization.id}:global` : "";
+  const streamRoom = activeStreamId && organization?.id
     ? `${organization.id}:${activeStreamId}`
     : "";
 
-  const activeStreamInfo = lobby.streams.find((s) => s.streamId === activeStreamId);
+  const globalParty = useParty({
+    room: globalRoom,
+    role: "viewer",
+    orgId: organization?.id,
 
-  const party = useParty({
-    room: chatRoom,
+    onChatMessage: useCallback(
+      (msg: { text: string; sender: string; timestamp: string }) => {
+        setGlobalMessages((prev) => [...prev, msg]);
+      },
+      [],
+    ),
+  });
+
+  const streamParty = useParty({
+    room: streamRoom,
     role: "viewer",
     orgId: organization?.id,
 
@@ -91,31 +104,40 @@ export default function ViewerPage() {
 
     onChatMessage: useCallback(
       (msg: { text: string; sender: string; timestamp: string }) => {
-        setMessages((prev) => [...prev, msg]);
+        setStreamMessages((prev) => [...prev, msg]);
       },
       [],
     ),
   });
 
-  const handleSendMessage = useCallback(
+  const handleSendGlobalMessage = useCallback(
     (text: string) => {
-      if (party.connectionStatus !== "connected") return;
-      const sender = username || "Viewer";
-      party.sendChat(text, sender);
-      setMessages((prev) => [
+      if (globalParty.connectionStatus !== "connected") return;
+      globalParty.sendChat(text, displayName);
+      setGlobalMessages((prev) => [
         ...prev,
-        { text, sender, timestamp: new Date().toISOString() },
+        { text, sender: displayName, timestamp: new Date().toISOString() },
       ]);
     },
-    [username, party.connectionStatus, party.sendChat],
+    [displayName, globalParty.connectionStatus, globalParty.sendChat],
   );
 
-  // Clear chat when switching streams
+  const handleSendStreamMessage = useCallback(
+    (text: string) => {
+      if (streamParty.connectionStatus !== "connected") return;
+      streamParty.sendChat(text, displayName);
+      setStreamMessages((prev) => [
+        ...prev,
+        { text, sender: displayName, timestamp: new Date().toISOString() },
+      ]);
+    },
+    [displayName, streamParty.connectionStatus, streamParty.sendChat],
+  );
+
   useEffect(() => {
-    setMessages([]);
+    setStreamMessages([]);
   }, [activeStreamId]);
 
-  // Viewer keyboard shortcuts
   const viewerShortcuts: KeyboardShortcut[] = useMemo(() => {
     if (lobby.streams.length < 2) return [];
     return [
@@ -184,8 +206,22 @@ export default function ViewerPage() {
     );
   }
 
-  // Side panel: stream selection + feed swapping
-  const sidePanel = (
+  const leftPanel = (
+    <div className="flex flex-col h-full min-h-0">
+      <CrewChatPanel
+        displayName={displayName}
+        globalMessages={globalMessages}
+        onGlobalSend={handleSendGlobalMessage}
+        streamMessages={activeStreamId ? streamMessages : undefined}
+        onStreamSend={activeStreamId ? handleSendStreamMessage : undefined}
+        streamName={activeStreamInfo?.cameraName}
+        globalConnected={globalParty.connectionStatus === "connected"}
+        streamConnected={activeStreamId ? streamParty.connectionStatus === "connected" : false}
+      />
+    </div>
+  );
+
+  const rightPanel = (
     <>
       <PanelSection title="Live Streams">
         <StreamSelector
@@ -229,28 +265,6 @@ export default function ViewerPage() {
       </div>
     </>
   );
-
-  // Bottom panel: chat connected to active stream
-  const bottomPanel = activeStreamId ? (
-    <div className="flex flex-col h-full">
-      <div className="px-3 py-1.5 border-b border-border flex items-center gap-2">
-        <span className="text-[10px] text-muted-foreground">
-          Chat: <span className="text-foreground/70 font-medium">{activeStreamInfo?.cameraName ?? "Stream"}</span>
-        </span>
-        {party.connectionStatus === "connected" && (
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-        )}
-      </div>
-      <div className="flex-1 min-h-0">
-        <ChatPanel
-          messages={messages}
-          username={username}
-          onUsernameChange={setUsername}
-          onSendMessage={handleSendMessage}
-        />
-      </div>
-    </div>
-  ) : null;
 
   const topBarCenter = (
     <>
@@ -314,16 +328,18 @@ export default function ViewerPage() {
               onSelectedStreamIdsChange={setSelectedStreamIds}
             />
           </div>
-          {activeStreamId && (
-            <div className="shrink-0 flex flex-col min-h-[10rem] max-h-[36vh] mt-3 rounded-xl border border-border bg-surface-1 overflow-hidden">
-              <ChatPanel
-                messages={messages}
-                username={username}
-                onUsernameChange={setUsername}
-                onSendMessage={handleSendMessage}
-              />
-            </div>
-          )}
+          <div className="shrink-0 flex flex-col min-h-[10rem] max-h-[36vh] mt-3 rounded-xl border border-border bg-surface-1 overflow-hidden">
+            <CrewChatPanel
+              displayName={displayName}
+              globalMessages={globalMessages}
+              onGlobalSend={handleSendGlobalMessage}
+              streamMessages={activeStreamId ? streamMessages : undefined}
+              onStreamSend={activeStreamId ? handleSendStreamMessage : undefined}
+              streamName={activeStreamInfo?.cameraName}
+              globalConnected={globalParty.connectionStatus === "connected"}
+              streamConnected={activeStreamId ? streamParty.connectionStatus === "connected" : false}
+            />
+          </div>
         </div>
       </AppShell>
     );
@@ -331,8 +347,8 @@ export default function ViewerPage() {
 
   return (
     <PanelLayout
-      sidePanel={sidePanel}
-      bottomPanel={bottomPanel}
+      leftPanel={leftPanel}
+      rightPanel={rightPanel}
       topBarCenter={topBarCenter}
       topBarRight={topBarRight}
       mobileTopBarCenter={topBarCenter}

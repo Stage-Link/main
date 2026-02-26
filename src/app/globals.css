@@ -197,22 +197,10 @@ body::after {
   box-shadow: 0 0 12px rgba(183, 28, 46, 0.25);
 }
 
+/* Border-only glow — does not overlap video content */
 .ambient-glow {
   position: relative;
-}
-
-.ambient-glow::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  z-index: -1;
-  border-radius: inherit;
-  background: radial-gradient(
-    ellipse 80% 50% at 50% 0%,
-    rgba(201, 162, 39, 0.08),
-    transparent 60%
-  );
-  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.06);
 }
 
 .ambient-stage {

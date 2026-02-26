@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { CameraPreview } from "@/components/video/camera-preview";
 import { StatsPanel } from "@/components/video/stats-panel";
-import { ChatPanel } from "@/components/chat/chat-panel";
+import { CrewChatPanel } from "@/components/chat/crew-chat-panel";
 import { ConnectionStatus } from "@/components/layout/connection-status";
 import { LiveClock } from "@/components/layout/live-clock";
 import {
@@ -50,7 +50,6 @@ import {
   getEffectiveOrgTier,
 } from "@/lib/billing/plans";
 import {
-  BarChart3,
   Eye,
   Settings,
   Monitor,
@@ -81,13 +80,12 @@ export default function HostPage() {
   const [showName, setShowName] = useState("Untitled Show");
   const [viewerCount, setViewerCount] = useState(0);
   const [mirrored, setMirrored] = useState(false);
-  const [showStats, setShowStats] = useState(false);
   const prevSfuStatusRef = useRef<string>("disconnected");
 
   const isMobilePortrait = useIsMobilePortrait();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [username, setUsername] = useState("");
+  const [globalMessages, setGlobalMessages] = useState<ChatMessage[]>([]);
+  const [streamMessages, setStreamMessages] = useState<ChatMessage[]>([]);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newCameraName, setNewCameraName] = useState("Camera 1");
@@ -105,11 +103,11 @@ export default function HostPage() {
   const webrtc = useHostWebRTC({ canUseHd });
   const sfu = useSfuHost(webrtc.stream);
 
-  useEffect(() => {
-    if (user && !username) {
-      setUsername(user.firstName ?? user.username ?? "Host");
-    }
-  }, [user, username]);
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    (user?.username as string) ||
+    user?.primaryEmailAddress?.emailAddress ||
+    "Host";
 
   useEffect(() => {
     if (organization?.publicMetadata?.showName != null) {
@@ -127,6 +125,21 @@ export default function HostPage() {
   const signalingRoom = lobby.activeStreamId
     ? `${organization?.id ?? ""}:${lobby.activeStreamId}`
     : "";
+
+  const globalRoom = organization?.id ? `${organization.id}:global` : "";
+
+  const globalParty = useParty({
+    room: globalRoom,
+    role: "viewer",
+    orgId: organization?.id,
+
+    onChatMessage: useCallback(
+      (msg: { text: string; sender: string; timestamp: string }) => {
+        setGlobalMessages((prev) => [...prev, msg]);
+      },
+      [],
+    ),
+  });
 
   const party = useParty({
     room: signalingRoom,
@@ -167,7 +180,7 @@ export default function HostPage() {
 
     onChatMessage: useCallback(
       (msg: { text: string; sender: string; timestamp: string }) => {
-        setMessages((prev) => [...prev, msg]);
+        setStreamMessages((prev) => [...prev, msg]);
       },
       [],
     ),
@@ -252,7 +265,7 @@ export default function HostPage() {
       sfu.disconnect();
       lobby.endStream(lobby.activeStreamId);
       setViewerCount(0);
-      setMessages([]);
+      setStreamMessages([]);
       toast.info("Stream ended");
     }
   }, [lobby, sfu]);
@@ -313,17 +326,28 @@ export default function HostPage() {
     }
   }, [party.connectionStatus, party.updateShowSettings, showName, webrtc.cameras, webrtc.selectedCamera, lobby]);
 
-  const handleSendMessage = useCallback(
+  const handleSendGlobalMessage = useCallback(
     (text: string) => {
-      if (party.connectionStatus !== "connected") return;
-      const sender = username || "Host";
-      party.sendChat(text, sender);
-      setMessages((prev) => [
+      if (globalParty.connectionStatus !== "connected") return;
+      globalParty.sendChat(text, displayName);
+      setGlobalMessages((prev) => [
         ...prev,
-        { text, sender, timestamp: new Date().toISOString() },
+        { text, sender: displayName, timestamp: new Date().toISOString() },
       ]);
     },
-    [username, party.connectionStatus, party.sendChat],
+    [displayName, globalParty.connectionStatus, globalParty.sendChat],
+  );
+
+  const handleSendStreamMessage = useCallback(
+    (text: string) => {
+      if (party.connectionStatus !== "connected") return;
+      party.sendChat(text, displayName);
+      setStreamMessages((prev) => [
+        ...prev,
+        { text, sender: displayName, timestamp: new Date().toISOString() },
+      ]);
+    },
+    [displayName, party.connectionStatus, party.sendChat],
   );
 
   const activeStats = streamMode === "sfu" ? sfu.stats : webrtc.stats;
@@ -350,11 +374,6 @@ export default function HostPage() {
               key: "c",
               action: cycleCameraNext,
               description: "Cycle camera",
-            },
-            {
-              key: "s",
-              action: () => setShowStats((v) => !v),
-              description: "Toggle statistics",
             },
             {
               key: "m",
@@ -402,22 +421,57 @@ export default function HostPage() {
     );
   }
 
-  // ── Pre-stream state ────────────────────────────────────────────
+  // ── Pre-stream state (chat on left, always available) ──────────────
   if (!isStreaming) {
+    const preStreamLeftPanel = (
+      <div className="flex flex-col h-full min-h-0">
+        <CrewChatPanel
+          displayName={displayName}
+          globalMessages={globalMessages}
+          onGlobalSend={handleSendGlobalMessage}
+          globalConnected={globalParty.connectionStatus === "connected"}
+        />
+      </div>
+    );
+
+    const preStreamRightPanel = (
+      <>
+        {lobby.streams.length > 0 && (
+          <>
+            <PanelSection title="Active Streams">
+              {lobby.streams.map((s) => (
+                <div
+                  key={s.streamId}
+                  className="flex items-center justify-between rounded-lg bg-surface-2 px-2 py-1.5 mb-1"
+                >
+                  <span className="text-xs text-foreground truncate">{s.cameraName}</span>
+                  <Badge variant="stat-muted" className="text-[9px] px-1 py-0 h-4">
+                    <Eye className="h-2.5 w-2.5" />
+                    {s.viewerCount}
+                  </Badge>
+                </div>
+              ))}
+            </PanelSection>
+            <div className="border-t border-border" />
+          </>
+        )}
+        <div className="mt-auto border-t border-border">
+          <PanelSection>
+            <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
+              <Link href="/viewer">
+                <Monitor className="h-3.5 w-3.5" />
+                Switch to Viewer
+              </Link>
+            </Button>
+          </PanelSection>
+        </div>
+      </>
+    );
+
     return (
-      <AppShell
-        sidebar={
-          <div className="mt-auto border-t border-border">
-            <SidebarSection>
-              <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
-                <Link href="/viewer">
-                  <Monitor className="h-3.5 w-3.5" />
-                  Switch to Viewer
-                </Link>
-              </Button>
-            </SidebarSection>
-          </div>
-        }
+      <PanelLayout
+        leftPanel={preStreamLeftPanel}
+        rightPanel={preStreamRightPanel}
         topBarCenter={
           <>
             <ConnectionStatus status={lobby.connectionStatus} />
@@ -541,7 +595,7 @@ export default function HostPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </AppShell>
+      </PanelLayout>
     );
   }
 
@@ -599,7 +653,22 @@ export default function HostPage() {
     </PanelSection>
   );
 
-  const sidePanel = (
+  const leftPanel = (
+    <div className="flex flex-col h-full min-h-0">
+      <CrewChatPanel
+        displayName={displayName}
+        globalMessages={globalMessages}
+        onGlobalSend={handleSendGlobalMessage}
+        streamMessages={isStreaming ? streamMessages : undefined}
+        onStreamSend={isStreaming ? handleSendStreamMessage : undefined}
+        streamName={lobby.streams.find((s) => s.streamId === lobby.activeStreamId)?.cameraName}
+        globalConnected={globalParty.connectionStatus === "connected"}
+        streamConnected={isStreaming && party.connectionStatus === "connected"}
+      />
+    </div>
+  );
+
+  const rightPanel = (
     <>
       <PanelSection title="Stream Mode">
         <StreamModeSelector
@@ -611,10 +680,6 @@ export default function HostPage() {
       </PanelSection>
       <div className="border-t border-border" />
       {showSettingsBlock}
-      <div className="border-t border-border" />
-      <PanelSection title="Statistics">
-        <StatsPanel webrtcStats={activeStats} />
-      </PanelSection>
       <div className="mt-auto border-t border-border">
         <PanelSection>
           <div className="space-y-1">
@@ -640,12 +705,14 @@ export default function HostPage() {
   );
 
   const bottomPanel = (
-    <ChatPanel
-      messages={messages}
-      username={username}
-      onUsernameChange={setUsername}
-      onSendMessage={handleSendMessage}
-    />
+    <div className="flex flex-col h-full overflow-auto">
+      <div className="px-3 py-2 border-b border-border shrink-0">
+        <h3 className="text-xs font-semibold text-foreground">Statistics</h3>
+      </div>
+      <div className="flex-1 min-h-0 p-3 overflow-auto">
+        <StatsPanel webrtcStats={activeStats} />
+      </div>
+    </div>
   );
 
   const topBarCenter = (
@@ -697,6 +764,10 @@ export default function HostPage() {
             </SidebarSection>
             <div className="border-t border-border" />
             {showSettingsBlock}
+            <div className="border-t border-border" />
+            <SidebarSection title="Statistics">
+              <StatsPanel webrtcStats={activeStats} />
+            </SidebarSection>
             <div className="mt-auto border-t border-border">
               <SidebarSection>
                 <div className="space-y-1">
@@ -734,31 +805,16 @@ export default function HostPage() {
                 mirrored={mirrored}
               />
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowStats(!showStats)}
-              className="w-full justify-start text-xs"
-            >
-              <BarChart3 className="h-3.5 w-3.5" />
-              {showStats ? "Hide Stats" : "Show Stats"}
-            </Button>
-            {showStats && (
-              <div className="rounded-xl border border-border bg-surface-2 overflow-hidden">
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                  <span className="text-xs font-semibold text-foreground/80">Statistics</span>
-                </div>
-                <div className="px-3 py-3">
-                  <StatsPanel webrtcStats={activeStats} />
-                </div>
-              </div>
-            )}
             <div className="shrink-0 flex flex-col min-h-[10rem] max-h-[36vh] rounded-xl border border-border bg-surface-1 overflow-hidden">
-              <ChatPanel
-                messages={messages}
-                username={username}
-                onUsernameChange={setUsername}
-                onSendMessage={handleSendMessage}
+              <CrewChatPanel
+                displayName={displayName}
+                globalMessages={globalMessages}
+                onGlobalSend={handleSendGlobalMessage}
+                streamMessages={streamMessages}
+                onStreamSend={handleSendStreamMessage}
+                streamName={lobby.streams.find((s) => s.streamId === lobby.activeStreamId)?.cameraName}
+                globalConnected={globalParty.connectionStatus === "connected"}
+                streamConnected={party.connectionStatus === "connected"}
               />
             </div>
           </div>
@@ -769,8 +825,9 @@ export default function HostPage() {
 
   return (
     <PanelLayout
-      sidePanel={sidePanel}
-      bottomPanel={bottomPanel}
+      leftPanel={leftPanel}
+      rightPanel={rightPanel}
+      bottomPanel={isStreaming ? bottomPanel : undefined}
       topBarCenter={topBarCenter}
       topBarRight={topBarRight}
       mobileTopBarCenter={mobileTopBarCenter}

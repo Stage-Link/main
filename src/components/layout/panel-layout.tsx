@@ -10,6 +10,7 @@ import {
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
+  PanelLeft,
   PanelRight,
   PanelBottom,
   Keyboard,
@@ -29,7 +30,8 @@ import {
 
 interface PanelLayoutProps {
   children: ReactNode;
-  sidePanel?: ReactNode;
+  leftPanel?: ReactNode;
+  rightPanel?: ReactNode;
   bottomPanel?: ReactNode;
   topBarCenter?: ReactNode;
   topBarRight?: ReactNode;
@@ -60,7 +62,8 @@ function ResizeHandle({ orientation }: { orientation: "horizontal" | "vertical" 
 
 export function PanelLayout({
   children,
-  sidePanel,
+  leftPanel,
+  rightPanel,
   bottomPanel,
   topBarCenter,
   topBarRight,
@@ -68,7 +71,8 @@ export function PanelLayout({
   shortcuts = [],
   showName,
 }: PanelLayoutProps) {
-  const [sidePanelVisible, setSidePanelVisible] = useState(true);
+  const [leftPanelVisible, setLeftPanelVisible] = useState(!!leftPanel);
+  const [rightPanelVisible, setRightPanelVisible] = useState(!!rightPanel);
   const [bottomPanelVisible, setBottomPanelVisible] = useState(!!bottomPanel);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -76,15 +80,25 @@ export function PanelLayout({
   const mainLayout = useDefaultLayout({ id: "stagelink-main" });
   const verticalLayout = useDefaultLayout({ id: "stagelink-vertical" });
 
-  const toggleSidePanel = useCallback(() => setSidePanelVisible((v) => !v), []);
+  const toggleLeftPanel = useCallback(() => setLeftPanelVisible((v) => !v), []);
+  const toggleRightPanel = useCallback(() => setRightPanelVisible((v) => !v), []);
   const toggleBottomPanel = useCallback(() => setBottomPanelVisible((v) => !v), []);
 
   const allShortcuts: KeyboardShortcut[] = [
-    ...(sidePanel
+    ...(leftPanel
       ? [
           {
             key: "b",
-            action: toggleSidePanel,
+            action: toggleLeftPanel,
+            description: "Toggle chat panel",
+          },
+        ]
+      : []),
+    ...(rightPanel
+      ? [
+          {
+            key: "r",
+            action: toggleRightPanel,
             description: "Toggle side panel",
           },
         ]
@@ -94,7 +108,7 @@ export function PanelLayout({
           {
             key: "j",
             action: toggleBottomPanel,
-            description: "Toggle bottom panel",
+            description: "Toggle stats panel",
           },
         ]
       : []),
@@ -109,9 +123,12 @@ export function PanelLayout({
 
   useKeyboardShortcuts(allShortcuts);
 
+  const hasRightPanel = rightPanel && rightPanelVisible;
+  const hasLeftPanel = leftPanel && leftPanelVisible;
+  const mobilePanel = rightPanel ?? leftPanel;
+
   return (
     <div className="flex h-[100dvh] flex-col bg-surface-0 text-foreground font-sans overflow-hidden">
-      {/* Top App Bar */}
       <motion.header
         className="h-11 flex items-center justify-between px-3 md:px-4 bg-surface-1 border-b border-border shrink-0 z-20"
         initial={{ opacity: 0, y: -8 }}
@@ -154,23 +171,37 @@ export function PanelLayout({
                 bottomPanelVisible && "text-gold"
               )}
               onClick={toggleBottomPanel}
-              title="Toggle bottom panel (J)"
+              title="Toggle stats panel (J)"
             >
               <PanelBottom className="h-3.5 w-3.5" />
             </Button>
           )}
-          {sidePanel && (
+          {rightPanel && (
             <Button
               variant="ghost"
               size="icon-xs"
               className={cn(
                 "hidden md:inline-flex",
-                sidePanelVisible && "text-gold"
+                rightPanelVisible && "text-gold"
               )}
-              onClick={toggleSidePanel}
-              title="Toggle side panel (B)"
+              onClick={toggleRightPanel}
+              title="Toggle side panel (R)"
             >
               <PanelRight className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {leftPanel && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className={cn(
+                "hidden md:inline-flex",
+                leftPanelVisible && "text-gold"
+              )}
+              onClick={toggleLeftPanel}
+              title="Toggle chat panel (B)"
+            >
+              <PanelLeft className="h-3.5 w-3.5" />
             </Button>
           )}
           <Button
@@ -182,7 +213,7 @@ export function PanelLayout({
           >
             <Keyboard className="h-3.5 w-3.5" />
           </Button>
-          {sidePanel && (
+          {mobilePanel && (
             <Button
               variant="ghost"
               size="icon"
@@ -201,14 +232,25 @@ export function PanelLayout({
         </div>
       </motion.header>
 
-      {/* Body — resizable panels */}
       <div className="flex-1 overflow-hidden">
         <Group
           orientation="horizontal"
           defaultLayout={mainLayout.defaultLayout}
           onLayoutChanged={mainLayout.onLayoutChanged}
         >
-          {/* Main + optional bottom panel */}
+          {hasLeftPanel && (
+            <>
+              <Panel id="left" minSize="12%" maxSize="35%">
+                <aside className="h-full bg-surface-1 border-r border-border flex flex-col overflow-hidden">
+                  <div className="flex flex-col flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
+                    {leftPanel}
+                  </div>
+                </aside>
+              </Panel>
+              <ResizeHandle orientation="horizontal" />
+            </>
+          )}
+
           <Panel id="main" minSize="30%">
             {bottomPanel && bottomPanelVisible ? (
               <Group
@@ -222,7 +264,7 @@ export function PanelLayout({
                   </main>
                 </Panel>
                 <ResizeHandle orientation="vertical" />
-                <Panel id="bottom" minSize="10%" maxSize="50%">
+                <Panel id="bottom" minSize="8%" maxSize="40%">
                   <div className="h-full bg-surface-1 border-t border-border overflow-hidden flex flex-col">
                     {bottomPanel}
                   </div>
@@ -235,18 +277,13 @@ export function PanelLayout({
             )}
           </Panel>
 
-          {/* Side panel */}
-          {sidePanel && sidePanelVisible && (
+          {hasRightPanel && (
             <>
               <ResizeHandle orientation="horizontal" />
-              <Panel
-                id="side"
-                minSize="15%"
-                maxSize="40%"
-              >
+              <Panel id="right" minSize="15%" maxSize="40%">
                 <aside className="h-full bg-surface-1 border-l border-border flex flex-col overflow-hidden">
                   <div className="flex flex-col flex-1 min-h-0 py-2 gap-1 overflow-y-auto [scrollbar-gutter:stable]">
-                    {sidePanel}
+                    {rightPanel}
                   </div>
                 </aside>
               </Panel>
@@ -255,8 +292,7 @@ export function PanelLayout({
         </Group>
       </div>
 
-      {/* Mobile drawer */}
-      {sidePanel && (
+      {mobilePanel && (
         <Sheet open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
           <SheetContent
             side="right"
@@ -264,13 +300,12 @@ export function PanelLayout({
             showCloseButton
           >
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-              {sidePanel}
+              {rightPanel ?? leftPanel}
             </div>
           </SheetContent>
         </Sheet>
       )}
 
-      {/* Keyboard shortcuts overlay */}
       {showShortcuts && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"

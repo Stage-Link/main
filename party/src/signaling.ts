@@ -49,6 +49,10 @@ export default class SignalingServer implements Party.Server {
     const parts = room.id.split(":");
     if (parts.length >= 2) {
       this.state.streamId = parts.slice(1).join(":");
+      // Global org chat room — no host, allow many viewers
+      if (this.state.streamId === "global") {
+        this.state.maxViewers = 500;
+      }
     }
   }
 
