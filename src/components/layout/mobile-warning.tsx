@@ -39,13 +39,13 @@ export function MobileWarning() {
           transition={{ duration: 0.2 }}
           className="flex items-center justify-between gap-3 rounded-xl border border-gold/30 bg-surface-1/95 px-3 py-2.5 text-left shadow-lg backdrop-blur-sm md:hidden"
         >
-          <p className="text-xs text-white/90 leading-snug">
+          <p className="text-xs text-foreground/90 leading-snug">
             For the best experience, we recommend using a tablet or laptop.
           </p>
           <button
             type="button"
             onClick={handleDismiss}
-            className="shrink-0 rounded-md p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
             aria-label="Dismiss"
           >
             <X className="h-4 w-4" strokeWidth={2} />

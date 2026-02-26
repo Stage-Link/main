@@ -187,14 +187,14 @@ function StatRow({
 }) {
   return (
     <div className="flex justify-between items-center text-[11px]">
-      <span className="text-white/60">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       <span
         className={
           warn
-            ? "text-crimson font-medium"
-            : highlight
-              ? "text-gold font-medium"
-              : "text-white font-medium"
+              ? "text-crimson font-medium"
+              : highlight
+                ? "text-gold font-medium"
+                : "text-foreground font-medium"
         }
       >
         {value ?? "--"}

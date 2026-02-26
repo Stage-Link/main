@@ -130,6 +130,9 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground font-sans;
   }
@@ -192,6 +195,44 @@ body::after {
 
 .glow-crimson {
   box-shadow: 0 0 12px rgba(183, 28, 46, 0.25);
+}
+
+.ambient-glow {
+  position: relative;
+}
+
+.ambient-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse 80% 50% at 50% 0%,
+    rgba(201, 162, 39, 0.08),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.ambient-stage {
+  position: relative;
+}
+
+.ambient-stage::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  right: 10%;
+  height: 40%;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse 100% 100% at 50% 100%,
+    rgba(183, 28, 46, 0.06),
+    transparent 70%
+  );
+  pointer-events: none;
 }
 
 .animate-live-pulse {

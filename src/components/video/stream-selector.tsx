@@ -22,8 +22,8 @@ export function StreamSelector({
   if (streams.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-6 px-3">
-        <Radio className="h-5 w-5 text-white/20" />
-        <p className="text-[11px] text-white/40 text-center">
+        <Radio className="h-5 w-5 text-muted-foreground/30" />
+        <p className="text-[11px] text-muted-foreground text-center">
           No live streams
         </p>
       </div>
@@ -62,15 +62,15 @@ export function StreamSelector({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-                    <span className="text-xs font-medium text-white truncate">
+                    <span className="text-xs font-medium text-foreground truncate">
                       {stream.cameraName}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-white/50 truncate">
+                    <span className="text-[10px] text-muted-foreground truncate">
                       {stream.showName} &middot; {stream.hostName}
                     </span>
-                    <span className="text-[10px] text-white/30">
+                    <span className="text-[10px] text-muted-foreground/50">
                       <Eye className="inline h-2.5 w-2.5 mr-0.5" />
                       {stream.viewerCount}
                     </span>
@@ -86,7 +86,7 @@ export function StreamSelector({
                   {isSelected ? (
                     <X className="h-3.5 w-3.5 text-gold" />
                   ) : (
-                    <Plus className="h-3.5 w-3.5 text-white/30" />
+                    <Plus className="h-3.5 w-3.5 text-muted-foreground/40" />
                   )}
                 </div>
               </div>

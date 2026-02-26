@@ -109,8 +109,8 @@ export function ChatPanel({
                   <span className={`font-medium ${getNameColor(msg.sender, i)}`}>
                     {msg.sender}
                   </span>
-                  <span className="text-white/50 font-normal"> ({time})</span>
-                  <p className="text-white/60 mt-0.5">{msg.text}</p>
+                  <span className="text-muted-foreground font-normal"> ({time})</span>
+                  <p className="text-foreground/60 mt-0.5">{msg.text}</p>
                 </motion.div>
               );
             })}
@@ -134,7 +134,7 @@ export function ChatPanel({
             <Send className="h-3.5 w-3.5" strokeWidth={1.8} />
           </button>
         </div>
-        <p className="text-[9px] text-white/40 mt-1">
+        <p className="text-[9px] text-muted-foreground/60 mt-1">
           {messages.length} message{messages.length !== 1 ? "s" : ""}
         </p>
       </div>

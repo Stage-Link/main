@@ -147,7 +147,7 @@ export function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className="relative w-full rounded-xl md:rounded-[20px] overflow-hidden shadow-2xl group transition-all duration-300"
+      className="relative w-full rounded-xl md:rounded-[20px] overflow-hidden shadow-2xl group transition-all duration-300 ambient-glow"
       style={{
         background:
           "linear-gradient(to bottom right, #1a0808, #200e0e, #0f0505)",
@@ -183,7 +183,7 @@ export function VideoPlayer({
               <div className="rounded-full bg-gold/20 p-4">
                 <Play className="h-8 w-8 text-gold fill-gold" />
               </div>
-              <span className="text-xs text-white/70">Tap to play</span>
+              <span className="text-xs text-foreground/70">Tap to play</span>
             </div>
           </button>
         )}
@@ -192,19 +192,19 @@ export function VideoPlayer({
         {hostOffline && !stream && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-10">
             <div className="flex flex-col items-center gap-3 max-w-xs text-center">
-              <div className="rounded-full bg-white/[0.06] p-4">
-                <WifiOff className="h-8 w-8 text-white/40" />
+              <div className="rounded-full bg-muted p-4">
+                <WifiOff className="h-8 w-8 text-muted-foreground" />
               </div>
-              <p className="text-white/70 text-sm font-medium">
+              <p className="text-foreground/70 text-sm font-medium">
                 No active stream
               </p>
-              <p className="text-white/40 text-xs leading-relaxed">
+              <p className="text-muted-foreground text-xs leading-relaxed">
                 The host hasn&apos;t started streaming yet. This page will update
                 automatically when a stream begins.
               </p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-white/20 animate-pulse" />
-                <span className="text-[11px] text-white/30">Waiting for host&hellip;</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 animate-pulse" />
+                <span className="text-[11px] text-muted-foreground/50">Waiting for host&hellip;</span>
               </div>
             </div>
           </div>
@@ -242,7 +242,7 @@ export function VideoPlayer({
 
         {/* Bottom-right camera label (below fullscreen so it doesn't block clicks) */}
         <div className="absolute bottom-2.5 right-2.5 z-[4]">
-          <span className="bg-black/40 backdrop-blur-sm rounded-md px-2 py-1 text-[10px] text-white/60">
+          <span className="bg-black/40 backdrop-blur-sm rounded-md px-2 py-1 text-[10px] text-foreground/60">
             {cameraName}
           </span>
         </div>

@@ -71,9 +71,9 @@ export function StreamGrid({
       return (
         <div className="h-full flex flex-col gap-2">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-white/60 font-medium">
+            <span className="text-xs text-muted-foreground font-medium">
               {focusedStream.cameraName}
-              <span className="text-white/30 ml-1.5">{focusedStream.showName}</span>
+              <span className="text-muted-foreground/50 ml-1.5">{focusedStream.showName}</span>
             </span>
             <Button
               variant="ghost"
@@ -117,7 +117,7 @@ export function StreamGrid({
             {LAYOUT_ICONS[l]}
           </Button>
         ))}
-        <span className="text-[10px] text-white/40 ml-2">
+        <span className="text-[10px] text-muted-foreground ml-2">
           {streams.length} active stream{streams.length !== 1 ? "s" : ""}
         </span>
       </div>
@@ -125,20 +125,31 @@ export function StreamGrid({
       {/* Grid */}
       {streams.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 max-w-xs text-center">
-            <div className="rounded-full bg-white/[0.06] p-4">
-              <WifiOff className="h-8 w-8 text-white/40" />
-            </div>
-            <p className="text-white/70 text-sm font-medium">
-              No active streams
+          <div className="flex flex-col items-center gap-4 max-w-xs text-center">
+            {/* Theater curtain illustration */}
+            <svg width="120" height="80" viewBox="0 0 120 80" fill="none" className="text-gold/20">
+              {/* Stage floor */}
+              <rect x="10" y="65" width="100" height="4" rx="2" fill="currentColor" opacity="0.3" />
+              {/* Left curtain */}
+              <path d="M10 5 C10 5 12 35 10 65 C10 65 25 60 30 65 C30 65 28 35 30 5 Z" fill="currentColor" opacity="0.5" />
+              {/* Right curtain */}
+              <path d="M110 5 C110 5 108 35 110 65 C110 65 95 60 90 65 C90 65 92 35 90 5 Z" fill="currentColor" opacity="0.5" />
+              {/* Top valance */}
+              <path d="M5 5 Q60 15 115 5 L115 0 L5 0 Z" fill="currentColor" opacity="0.6" />
+              {/* Spotlight beam */}
+              <ellipse cx="60" cy="55" rx="15" ry="6" fill="currentColor" opacity="0.15" />
+              <path d="M55 10 L48 55 L72 55 L65 10 Z" fill="currentColor" opacity="0.08" />
+            </svg>
+            <p className="text-foreground/70 text-sm font-display font-semibold">
+              The stage is empty
             </p>
-            <p className="text-white/40 text-xs leading-relaxed">
-              There are no live streams in this organization right now.
-              This page will update automatically when a stream begins.
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              No live streams in this organization right now.
+              This page updates automatically when a stream begins.
             </p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-white/20 animate-pulse" />
-              <span className="text-[11px] text-white/30">Waiting for streams&hellip;</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-gold/30 animate-pulse" />
+              <span className="text-[11px] text-muted-foreground/50">Waiting for curtain call&hellip;</span>
             </div>
           </div>
         </div>
@@ -154,7 +165,7 @@ export function StreamGrid({
                   key={`empty-${i}`}
                   className="rounded-xl border border-dashed border-white/[0.08] bg-surface-1 flex items-center justify-center"
                 >
-                  <span className="text-[11px] text-white/20">
+                  <span className="text-[11px] text-muted-foreground/30">
                     No stream assigned
                   </span>
                 </div>

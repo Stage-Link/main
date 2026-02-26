@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useUser, useOrganization, useAuth, UserButton } from "@clerk/nextjs";
 import { OrganizationSwitcher } from "@clerk/nextjs";
 import { useSubscription } from "@clerk/nextjs/experimental";
@@ -33,6 +33,7 @@ import {
 } from "@/components/controls/stream-mode-selector";
 import { Badge } from "@/components/ui/badge";
 import { AppShell, SidebarSection } from "@/components/layout/app-shell";
+import { PanelLayout, PanelSection } from "@/components/layout/panel-layout";
 import { toast } from "sonner";
 import { useHostWebRTC } from "@/hooks/use-webrtc";
 import { useSfuHost } from "@/hooks/use-sfu";
@@ -40,6 +41,7 @@ import { useParty, type SignalMessage } from "@/hooks/use-party";
 import { useLobby } from "@/hooks/use-lobby";
 import { useIsMobilePortrait } from "@/hooks/use-media-query";
 import { MobileWarning } from "@/components/layout/mobile-warning";
+import type { KeyboardShortcut } from "@/hooks/use-keyboard-shortcuts";
 import type { OrgTier } from "@/lib/streams/types";
 import {
   hasStreamAccess,
@@ -49,7 +51,6 @@ import {
 } from "@/lib/billing/plans";
 import {
   BarChart3,
-  ChevronUp,
   Eye,
   Settings,
   Monitor,
@@ -85,40 +86,31 @@ export default function HostPage() {
 
   const isMobilePortrait = useIsMobilePortrait();
 
-  // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [username, setUsername] = useState("");
 
-  // Stream creation dialog — only camera name; show name is org-level
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newCameraName, setNewCameraName] = useState("Camera 1");
 
-  /** Show name is set at org level (Clerk org publicMetadata.showName or default) */
   const orgShowName =
     (organization?.publicMetadata?.showName as string | undefined)?.trim() ||
     "Untitled Show";
 
-  // ── Lobby connection ───────────────────────────────────────────
   const lobby = useLobby({
     orgId: organization?.id ?? "",
     role: "host",
     tier: orgTier,
   });
 
-  // P2P WebRTC hook (resolution capped by hd_video feature)
   const webrtc = useHostWebRTC({ canUseHd });
-
-  // SFU hook — always called, but only connects when mode is "sfu"
   const sfu = useSfuHost(webrtc.stream);
 
-  // Default username from Clerk user
   useEffect(() => {
     if (user && !username) {
       setUsername(user.firstName ?? user.username ?? "Host");
     }
   }, [user, username]);
 
-  // Sync show name from org (show name is org-level)
   useEffect(() => {
     if (organization?.publicMetadata?.showName != null) {
       const name = (organization.publicMetadata.showName as string)?.trim();
@@ -126,19 +118,16 @@ export default function HostPage() {
     }
   }, [organization?.publicMetadata?.showName]);
 
-  // If org loses SFU access, switch to P2P
   useEffect(() => {
     if (!canUseSfu && streamMode === "sfu") {
       setStreamMode("p2p");
     }
   }, [canUseSfu, streamMode]);
 
-  // The signaling room is scoped to the active stream
   const signalingRoom = lobby.activeStreamId
     ? `${organization?.id ?? ""}:${lobby.activeStreamId}`
     : "";
 
-  // ── PartyKit signaling (per-stream) ────────────────────────────
   const party = useParty({
     room: signalingRoom,
     role: "host",
@@ -168,7 +157,6 @@ export default function HostPage() {
     onViewerCount: useCallback(
       (count: number) => {
         setViewerCount(count);
-        // Report back to lobby for discovery
         if (lobby.activeStreamId) {
           lobby.reportViewerCount(lobby.activeStreamId, count);
         }
@@ -185,21 +173,18 @@ export default function HostPage() {
     ),
   });
 
-  // ── Wire PartyKit sendSignal to WebRTC hook ───────────────────
   useEffect(() => {
     if (party.connectionStatus === "connected") {
       webrtc.setSendSignal(party.sendSignal);
     }
   }, [party.connectionStatus, party.sendSignal, webrtc.setSendSignal]);
 
-  // ── Set hostId from PartyKit connectionId ─────────────────────
   useEffect(() => {
     if (party.connectionId) {
       webrtc.setHostId(party.connectionId);
     }
   }, [party.connectionId, webrtc.setHostId]);
 
-  // ── SFU connect/disconnect + announce mode via PartyKit ───────
   useEffect(() => {
     if (!lobby.activeStreamId) return;
 
@@ -221,7 +206,6 @@ export default function HostPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamMode, webrtc.stream, lobby.activeStreamId, maxViewers]);
 
-  // When SFU info becomes available, re-announce + update lobby
   useEffect(() => {
     if (
       streamMode === "sfu" &&
@@ -243,7 +227,6 @@ export default function HostPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamMode, sfu.status, sfu.sessionId, sfu.trackName, party.connectionStatus]);
 
-  // Toast on SFU status changes
   useEffect(() => {
     const prev = prevSfuStatusRef.current;
     prevSfuStatusRef.current = sfu.status;
@@ -256,7 +239,6 @@ export default function HostPage() {
     }
   }, [sfu.status]);
 
-  // ── Stream creation ────────────────────────────────────────────
   const handleCreateStream = useCallback(() => {
     const hostName = user?.firstName ?? user?.username ?? "Host";
     lobby.createStream(newCameraName || "Camera 1", orgShowName, hostName);
@@ -275,7 +257,6 @@ export default function HostPage() {
     }
   }, [lobby, sfu]);
 
-  // Show limit-reached toast
   useEffect(() => {
     if (lobby.limitReached) {
       toast.error(
@@ -284,7 +265,6 @@ export default function HostPage() {
     }
   }, [lobby.limitReached, lobby.maxStreams]);
 
-  // Camera switch
   const handleCameraSwitch = useCallback(
     async (deviceId: string) => {
       await webrtc.switchCamera(deviceId);
@@ -305,7 +285,6 @@ export default function HostPage() {
     [webrtc.switchCamera, streamMode, sfu],
   );
 
-  // Mode change + sync to lobby
   const handleModeChange = useCallback(
     (mode: StreamMode) => {
       setStreamMode(mode);
@@ -321,7 +300,6 @@ export default function HostPage() {
     [lobby],
   );
 
-  // Update show settings
   const handleUpdateSettings = useCallback(() => {
     if (party.connectionStatus === "connected") {
       const cameraIndex = webrtc.cameras.findIndex(
@@ -335,7 +313,6 @@ export default function HostPage() {
     }
   }, [party.connectionStatus, party.updateShowSettings, showName, webrtc.cameras, webrtc.selectedCamera, lobby]);
 
-  // Send chat message
   const handleSendMessage = useCallback(
     (text: string) => {
       if (party.connectionStatus !== "connected") return;
@@ -351,6 +328,43 @@ export default function HostPage() {
 
   const activeStats = streamMode === "sfu" ? sfu.stats : webrtc.stats;
   const isStreaming = !!lobby.activeStreamId;
+
+  // Cycle camera via next index
+  const cycleCameraNext = useCallback(() => {
+    if (webrtc.cameras.length < 2) return;
+    const idx = webrtc.cameras.findIndex((c) => c.deviceId === webrtc.selectedCamera);
+    const next = (idx + 1) % webrtc.cameras.length;
+    handleCameraSwitch(webrtc.cameras[next].deviceId);
+  }, [webrtc.cameras, webrtc.selectedCamera, handleCameraSwitch]);
+
+  const hostShortcuts: KeyboardShortcut[] = useMemo(
+    () =>
+      isStreaming
+        ? [
+            {
+              key: "e",
+              action: handleEndStream,
+              description: "End stream",
+            },
+            {
+              key: "c",
+              action: cycleCameraNext,
+              description: "Cycle camera",
+            },
+            {
+              key: "s",
+              action: () => setShowStats((v) => !v),
+              description: "Toggle statistics",
+            },
+            {
+              key: "m",
+              action: () => setMirrored((v) => !v),
+              description: "Toggle mirror",
+            },
+          ]
+        : [],
+    [isStreaming, handleEndStream, cycleCameraNext],
+  );
 
   if (!organization) {
     return (
@@ -388,12 +402,12 @@ export default function HostPage() {
     );
   }
 
-  // ── Pre-stream state: show create stream dialog ────────────────
+  // ── Pre-stream state ────────────────────────────────────────────
   if (!isStreaming) {
     return (
       <AppShell
         sidebar={
-          <div className="mt-auto border-t border-white/[0.06]">
+          <div className="mt-auto border-t border-border">
             <SidebarSection>
               <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
                 <Link href="/viewer">
@@ -423,8 +437,12 @@ export default function HostPage() {
       >
         <div className="h-full flex items-center justify-center p-4">
           <div className="flex flex-col items-center gap-6 max-w-sm text-center">
-            <div className="rounded-full bg-gold/10 p-6">
-              <Radio className="h-10 w-10 text-gold" />
+            {/* Theater-themed empty state */}
+            <div className="relative">
+              <div className="rounded-full bg-gold/10 p-6">
+                <Radio className="h-10 w-10 text-gold" />
+              </div>
+              <div className="absolute inset-0 rounded-full bg-gold/5 animate-ping" />
             </div>
             <div>
               <h2 className="text-lg font-display text-foreground font-semibold">
@@ -442,11 +460,11 @@ export default function HostPage() {
 
             {lobby.streams.length > 0 && (
               <div className="w-full space-y-1.5">
-                <span className="text-[11px] text-white/40 uppercase tracking-wider">Active Streams</span>
+                <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Active Streams</span>
                 {lobby.streams.map((s) => (
                   <div
                     key={s.streamId}
-                    className="flex items-center justify-between rounded-lg bg-white/[0.04] px-3 py-2"
+                    className="flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
@@ -479,7 +497,7 @@ export default function HostPage() {
               Create Stream
             </Button>
             {lobby.streams.length >= lobby.maxStreams && (
-              <p className="text-[11px] text-red-400">
+              <p className="text-[11px] text-crimson">
                 Stream limit reached ({lobby.maxStreams} max).
                 Upgrade your plan for more concurrent streams.
               </p>
@@ -487,15 +505,14 @@ export default function HostPage() {
           </div>
         </div>
 
-        {/* Create stream dialog */}
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Stream</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <p className="text-[11px] text-white/50">
-                Show: <span className="text-white/70 font-medium">{orgShowName}</span>
+              <p className="text-[11px] text-muted-foreground">
+                Show: <span className="text-foreground/70 font-medium">{orgShowName}</span>
                 {" "}(set in org settings)
               </p>
               <div className="space-y-1.5">
@@ -528,13 +545,13 @@ export default function HostPage() {
     );
   }
 
-  // ── Active streaming state (existing UI with lobby awareness) ──
+  // ── Active streaming — resizable panels layout ─────────────────
 
   const showSettingsBlock = (
-    <SidebarSection title="Show Settings">
+    <PanelSection title="Show Settings">
       <div className="space-y-3">
         <div className="space-y-1.5">
-          <Label htmlFor="showName" className="text-[11px] text-white/60">
+          <Label htmlFor="showName" className="text-[11px] text-muted-foreground">
             Show Name
           </Label>
           <Input
@@ -546,7 +563,7 @@ export default function HostPage() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="cameraSelect" className="text-[11px] text-white/60">
+          <Label htmlFor="cameraSelect" className="text-[11px] text-muted-foreground">
             Camera
           </Label>
           <Select
@@ -579,36 +596,27 @@ export default function HostPage() {
           Update Settings
         </Button>
       </div>
-    </SidebarSection>
+    </PanelSection>
   );
 
-  const sidebarFull = (
+  const sidePanel = (
     <>
-      <div className="flex-1 min-h-[10rem] min-h-0 flex flex-col overflow-hidden">
-        <ChatPanel
-          messages={messages}
-          username={username}
-          onUsernameChange={setUsername}
-          onSendMessage={handleSendMessage}
-        />
-      </div>
-      <div className="border-t border-white/[0.06]" />
-      <SidebarSection title="Stream Mode">
+      <PanelSection title="Stream Mode">
         <StreamModeSelector
           mode={streamMode}
           onModeChange={handleModeChange}
           sfuStatus={streamMode === "sfu" ? sfu.status : undefined}
           canUseSfu={canUseSfu}
         />
-      </SidebarSection>
-      <div className="border-t border-white/[0.06]" />
+      </PanelSection>
+      <div className="border-t border-border" />
       {showSettingsBlock}
-      <div className="border-t border-white/[0.06]" />
-      <SidebarSection title="Statistics">
+      <div className="border-t border-border" />
+      <PanelSection title="Statistics">
         <StatsPanel webrtcStats={activeStats} />
-      </SidebarSection>
-      <div className="mt-auto border-t border-white/[0.06]">
-        <SidebarSection>
+      </PanelSection>
+      <div className="mt-auto border-t border-border">
+        <PanelSection>
           <div className="space-y-1">
             <Button
               variant="destructive"
@@ -626,50 +634,20 @@ export default function HostPage() {
               </Link>
             </Button>
           </div>
-        </SidebarSection>
+        </PanelSection>
       </div>
     </>
   );
 
-  const sidebarPortrait = (
-    <>
-      <SidebarSection title="Stream Mode">
-        <StreamModeSelector
-          mode={streamMode}
-          onModeChange={handleModeChange}
-          sfuStatus={streamMode === "sfu" ? sfu.status : undefined}
-          canUseSfu={canUseSfu}
-        />
-      </SidebarSection>
-      <div className="border-t border-white/[0.06]" />
-      {showSettingsBlock}
-      <div className="mt-auto border-t border-white/[0.06]">
-        <SidebarSection>
-          <div className="space-y-1">
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full justify-start text-xs"
-              onClick={handleEndStream}
-            >
-              <StopCircle className="h-3.5 w-3.5" />
-              End Stream
-            </Button>
-            <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
-              <Link href="/viewer">
-                <Monitor className="h-3.5 w-3.5" />
-                Switch to Viewer
-              </Link>
-            </Button>
-          </div>
-        </SidebarSection>
-      </div>
-    </>
+  const bottomPanel = (
+    <ChatPanel
+      messages={messages}
+      username={username}
+      onUsernameChange={setUsername}
+      onSendMessage={handleSendMessage}
+    />
   );
 
-  const sidebar = isMobilePortrait ? sidebarPortrait : sidebarFull;
-
-  // ── Top Bar ───────────────────────────────────────────────────
   const topBarCenter = (
     <>
       <ConnectionStatus status={party.connectionStatus} />
@@ -704,14 +682,48 @@ export default function HostPage() {
     </>
   );
 
-  return (
-    <AppShell
-      sidebar={sidebar}
-      topBarCenter={topBarCenter}
-      topBarRight={topBarRight}
-      mobileTopBarCenter={mobileTopBarCenter}
-    >
-      {isMobilePortrait ? (
+  if (isMobilePortrait) {
+    return (
+      <AppShell
+        sidebar={
+          <>
+            <SidebarSection title="Stream Mode">
+              <StreamModeSelector
+                mode={streamMode}
+                onModeChange={handleModeChange}
+                sfuStatus={streamMode === "sfu" ? sfu.status : undefined}
+                canUseSfu={canUseSfu}
+              />
+            </SidebarSection>
+            <div className="border-t border-border" />
+            {showSettingsBlock}
+            <div className="mt-auto border-t border-border">
+              <SidebarSection>
+                <div className="space-y-1">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                    onClick={handleEndStream}
+                  >
+                    <StopCircle className="h-3.5 w-3.5" />
+                    End Stream
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
+                    <Link href="/viewer">
+                      <Monitor className="h-3.5 w-3.5" />
+                      Switch to Viewer
+                    </Link>
+                  </Button>
+                </div>
+              </SidebarSection>
+            </div>
+          </>
+        }
+        topBarCenter={topBarCenter}
+        topBarRight={topBarRight}
+        mobileTopBarCenter={mobileTopBarCenter}
+      >
         <div className="h-full flex flex-col p-2 overflow-y-auto">
           <MobileWarning />
           <div className="flex-1 min-h-0 flex flex-col gap-3 mt-2">
@@ -732,25 +744,16 @@ export default function HostPage() {
               {showStats ? "Hide Stats" : "Show Stats"}
             </Button>
             {showStats && (
-              <div className="rounded-xl border border-white/[0.06] bg-surface-2 overflow-hidden">
-                <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
-                  <span className="text-xs font-semibold text-white/80">Statistics</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowStats(false)}
-                    className="h-7 gap-1 text-xs text-white/60 hover:text-white"
-                  >
-                    <ChevronUp className="h-3.5 w-3.5" />
-                    Close
-                  </Button>
+              <div className="rounded-xl border border-border bg-surface-2 overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                  <span className="text-xs font-semibold text-foreground/80">Statistics</span>
                 </div>
                 <div className="px-3 py-3">
                   <StatsPanel webrtcStats={activeStats} />
                 </div>
               </div>
             )}
-            <div className="shrink-0 flex flex-col min-h-[10rem] max-h-[36vh] rounded-xl border border-white/[0.06] bg-surface-1 overflow-hidden">
+            <div className="shrink-0 flex flex-col min-h-[10rem] max-h-[36vh] rounded-xl border border-border bg-surface-1 overflow-hidden">
               <ChatPanel
                 messages={messages}
                 username={username}
@@ -760,17 +763,29 @@ export default function HostPage() {
             </div>
           </div>
         </div>
-      ) : (
-        <div className="h-full flex flex-col p-2 md:p-4">
-          <div className="flex-1 min-h-0">
-            <CameraPreview
-              stream={webrtc.stream}
-              loading={webrtc.loading}
-              mirrored={mirrored}
-            />
-          </div>
+      </AppShell>
+    );
+  }
+
+  return (
+    <PanelLayout
+      sidePanel={sidePanel}
+      bottomPanel={bottomPanel}
+      topBarCenter={topBarCenter}
+      topBarRight={topBarRight}
+      mobileTopBarCenter={mobileTopBarCenter}
+      shortcuts={hostShortcuts}
+      showName={showName}
+    >
+      <div className="h-full flex flex-col p-2 md:p-4">
+        <div className="flex-1 min-h-0">
+          <CameraPreview
+            stream={webrtc.stream}
+            loading={webrtc.loading}
+            mirrored={mirrored}
+          />
         </div>
-      )}
-    </AppShell>
+      </div>
+    </PanelLayout>
   );
 }

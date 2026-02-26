@@ -143,11 +143,11 @@ export function StreamCell({
       <div className="absolute bottom-0 left-0 right-0 z-[6] bg-gradient-to-t from-black/70 to-transparent p-2 pointer-events-none">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[10px] text-white/90 font-medium truncate">
+            <span className="text-[10px] text-foreground/90 font-medium truncate">
               {streamInfo.cameraName}
             </span>
             {!compact && (
-              <span className="text-[9px] text-white/50 truncate">
+              <span className="text-[9px] text-muted-foreground truncate">
                 {streamInfo.showName}
               </span>
             )}
