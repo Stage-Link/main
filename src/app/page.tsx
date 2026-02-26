@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { Fragment, useState, useEffect } from "react";
 import { useAuth, useOrganization, UserButton } from "@clerk/nextjs";
 import { useSubscription } from "@clerk/nextjs/experimental";
 import { OrganizationSwitcher } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { hasStreamAccess, hasFullAccessBySlug } from "@/lib/billing/plans";
+import { hasStreamAccess, hasFullAccessBySlug, getEffectiveOrgTier } from "@/lib/billing/plans";
+import { useLobby } from "@/hooks/use-lobby";
 import {
   Monitor,
   Radio,
@@ -36,12 +38,25 @@ const scaleIn = {
   visible: { opacity: 1, scale: 1 },
 };
 
+const LAST_STREAM_KEY = "stagelink-last-stream";
+
 export default function HomePage() {
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
   const { organization, isLoaded: orgLoaded, membership } = useOrganization();
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription({
     for: "organization",
   });
+  const [lastStreamId, setLastStreamId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!organization?.id || typeof localStorage === "undefined") return;
+    try {
+      const id = localStorage.getItem(`${LAST_STREAM_KEY}-${organization.id}`);
+      if (id) setLastStreamId(id);
+    } catch {
+      // ignore
+    }
+  }, [organization?.id]);
 
   const ready = authLoaded && orgLoaded;
   const orgRole = membership?.role;
@@ -54,6 +69,13 @@ export default function HomePage() {
   const showStreamActions =
     organization && (hasFreeAccessBySlug || (!subscriptionLoading && hasPlan));
 
+  const tier = getEffectiveOrgTier(subscription, organization?.slug);
+  const lobby = useLobby({
+    orgId: organization?.id ?? "",
+    role: "viewer",
+    tier,
+  });
+
   return (
     <div className="min-h-screen bg-surface-0 text-foreground flex flex-col relative overflow-hidden">
       {/* Ambient glow */}
@@ -65,24 +87,26 @@ export default function HomePage() {
       {/* Header */}
       {isSignedIn && (
         <header className="relative z-10 border-b border-white/[0.06] bg-surface-0/80 backdrop-blur-xl">
-          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-2 text-sm font-display font-semibold tracking-tight">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <span className="flex items-center gap-2 text-sm font-display font-semibold tracking-tight shrink-0">
                 <span className="h-2 w-2 shrink-0 rounded-full bg-gold animate-live-pulse" aria-hidden />
                 Stage<span className="text-gold">Link</span>
               </span>
-              <div className="h-4 w-px bg-white/10" />
-              <OrganizationSwitcher
-                hidePersonal
-                afterSelectOrganizationUrl="/"
-                afterCreateOrganizationUrl="/"
-              />
+              <div className="h-4 w-px bg-white/10 shrink-0 hidden sm:block" />
+              <div className="min-w-0 [&_.cl-organizationSwitcherTrigger]:max-w-[140px] sm:[&_.cl-organizationSwitcherTrigger]:max-w-none">
+                <OrganizationSwitcher
+                  hidePersonal
+                  afterSelectOrganizationUrl="/"
+                  afterCreateOrganizationUrl="/"
+                />
+              </div>
             </div>
-            <nav className="flex items-center gap-3">
+            <nav className="flex items-center gap-2 sm:gap-3 shrink-0">
               {isAdmin && (
                 <Link
                   href="/org-settings"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 hidden sm:flex"
                 >
                   <Settings className="h-3 w-3" />
                   Settings
@@ -95,8 +119,7 @@ export default function HomePage() {
       )}
 
       {/* Main content */}
-      {/* Main content */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-6 py-16">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-12 sm:px-6 sm:py-16">
         {!ready ? (
           <div className="flex justify-center py-8">
             <div className="h-5 w-5 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
@@ -104,7 +127,7 @@ export default function HomePage() {
         ) : (
           <motion.div
             key={isSignedIn ? (organization ? "org" : "no-org") : "signed-out"}
-            className="max-w-xl w-full text-center space-y-12"
+            className={`w-full text-center space-y-8 sm:space-y-12 ${showStreamActions ? "max-w-2xl" : "max-w-xl"}`}
             initial="hidden"
             animate="visible"
             variants={stagger}
@@ -123,7 +146,7 @@ export default function HomePage() {
             {/* State-dependent content */}
             {!isSignedIn ? (
               <motion.div className="space-y-8" variants={fadeUp} transition={{ duration: 0.5 }}>
-                <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-sm mx-auto">
                   {[
                     { icon: Radio, label: "Low latency" },
                     { icon: Shield, label: "Private streams" },
@@ -131,10 +154,10 @@ export default function HomePage() {
                   ].map(({ icon: Icon, label }) => (
                     <div
                       key={label}
-                      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-card/50 border border-border"
+                      className="flex flex-col items-center gap-1.5 sm:gap-2 p-2.5 sm:p-3 rounded-xl bg-card/50 border border-border"
                     >
                       <Icon className="h-4 w-4 text-gold/70" strokeWidth={1.5} />
-                      <span className="text-[11px] text-muted-foreground">{label}</span>
+                      <span className="text-[10px] sm:text-[11px] text-muted-foreground">{label}</span>
                     </div>
                   ))}
                 </div>
@@ -150,7 +173,7 @@ export default function HomePage() {
               </motion.div>
             ) : showCreateOrJoinOrg ? (
               <motion.div
-                className="max-w-md mx-auto rounded-2xl bg-card border border-border p-8 space-y-6"
+                className="max-w-md mx-auto rounded-2xl bg-card border border-border p-6 sm:p-8 space-y-6"
                 variants={scaleIn}
                 transition={{ duration: 0.4 }}
               >
@@ -217,16 +240,17 @@ export default function HomePage() {
                     <div className="h-5 w-5 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
                   </div>
                 ) : showStreamActions ? (
-                  <motion.div
-                    className={`grid gap-4 ${canHost ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-xs mx-auto"}`}
-                    initial="hidden"
-                    animate="visible"
-                    variants={stagger}
-                  >
+                  <Fragment>
+                    <motion.div
+                      className={`grid gap-4 ${canHost ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-xs mx-auto"}`}
+                      initial="hidden"
+                      animate="visible"
+                      variants={stagger}
+                    >
                     {canHost && (
                       <motion.div variants={scaleIn} transition={{ duration: 0.35 }}>
                         <Link href="/host" className="group block">
-                          <div className="relative rounded-2xl border border-border bg-card p-6 text-center space-y-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-gold/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(201,162,39,0.1)]">
+                          <div className="relative rounded-2xl border border-border bg-card p-4 sm:p-6 text-center space-y-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-gold/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(201,162,39,0.1)]">
                             <div className="mx-auto w-12 h-12 rounded-xl bg-gold/15 border border-gold/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                               <Radio className="h-5 w-5 text-gold" strokeWidth={1.5} />
                             </div>
@@ -248,8 +272,11 @@ export default function HomePage() {
                     )}
 
                     <motion.div variants={scaleIn} transition={{ duration: 0.35 }}>
-                      <Link href="/viewer" className="group block">
-                        <div className="relative rounded-2xl border border-border bg-card p-6 text-center space-y-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-crimson/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(183,28,46,0.1)]">
+                      <Link
+                        href={lastStreamId ? `/viewer?stream=${encodeURIComponent(lastStreamId)}` : "/viewer"}
+                        className="group block"
+                      >
+                        <div className="relative rounded-2xl border border-border bg-card p-4 sm:p-6 text-center space-y-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-crimson/30 hover:bg-surface-3 group-hover:shadow-[0_0_50px_rgba(183,28,46,0.1)]">
                           <div className="mx-auto w-12 h-12 rounded-xl bg-crimson/15 border border-crimson/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                             <Monitor className="h-5 w-5 text-crimson" strokeWidth={1.5} />
                           </div>
@@ -269,9 +296,61 @@ export default function HomePage() {
                       </Link>
                     </motion.div>
                   </motion.div>
+
+                  {/* Live now */}
+                  <motion.section
+                    className="space-y-3 text-left"
+                    variants={fadeUp}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Live now
+                    </h2>
+                    {lobby.streams.length > 0 ? (
+                      <ul className="space-y-2">
+                        {lobby.streams.map((stream) => (
+                          <li key={stream.streamId}>
+                            <div className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {stream.showName} · {stream.cameraName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {stream.viewerCount} watching
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="inline-flex items-center gap-1.5 text-[10px] text-crimson/90 font-medium uppercase tracking-wider">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-crimson/60 animate-pulse" aria-hidden />
+                                  Live
+                                </span>
+                                <Button asChild size="sm" variant="outline" className="border-white/10">
+                                  <Link href="/viewer">Watch</Link>
+                                </Button>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No live streams. Start one from Host Control.
+                      </p>
+                    )}
+                  </motion.section>
+
+                  {/* Connection status */}
+                  <p className="text-xs text-muted-foreground">
+                    {lobby.connectionStatus === "connected"
+                      ? "Connected to lobby"
+                      : lobby.connectionStatus === "reconnecting"
+                        ? "Reconnecting…"
+                        : "Connecting…"}
+                  </p>
+                  </Fragment>
                 ) : organization ? (
                   <motion.div
-                    className="max-w-md mx-auto rounded-2xl bg-card border border-border p-8 space-y-6"
+                    className="max-w-md mx-auto rounded-2xl bg-card border border-border p-6 sm:p-8 space-y-6"
                     initial="hidden"
                     animate="visible"
                     variants={scaleIn}
