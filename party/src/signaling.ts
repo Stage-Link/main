@@ -229,8 +229,12 @@ export default class SignalingServer implements Party.Server {
   }
 
   // ── Helpers ────────────────────────────────────────────────
+  // Only count viewer connections; host page must never be included in viewer count.
   private broadcastViewerCount() {
-    const viewerCount = [...this.room.getConnections("viewer")].length;
+    const viewers = [...this.room.getConnections("viewer")].filter(
+      (c) => c.id !== this.state.hostId,
+    );
+    const viewerCount = viewers.length;
     this.room.broadcast(
       JSON.stringify({
         type: "viewer-count",
