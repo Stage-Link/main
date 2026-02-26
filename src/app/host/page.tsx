@@ -34,13 +34,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AppShell, SidebarSection } from "@/components/layout/app-shell";
 import { PanelLayout, PanelSection } from "@/components/layout/panel-layout";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useHostWebRTC } from "@/hooks/use-webrtc";
 import { useSfuHost } from "@/hooks/use-sfu";
 import { useParty, type SignalMessage } from "@/hooks/use-party";
 import { useLobby } from "@/hooks/use-lobby";
-import { useIsMobilePortrait } from "@/hooks/use-media-query";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { MobileWarning } from "@/components/layout/mobile-warning";
+import { ErrorState } from "@/components/error-state";
 import type { KeyboardShortcut } from "@/hooks/use-keyboard-shortcuts";
 import type { OrgTier } from "@/lib/streams/types";
 import {
@@ -74,15 +76,19 @@ export default function HostPage() {
   });
   const maxViewers = getEffectiveViewerCap(subscription, organization?.slug);
   const orgTier: OrgTier = getEffectiveOrgTier(subscription, organization?.slug);
-  const canUseSfu = has?.({ feature: "sfu_access" }) ?? false;
+  const canUseSfu =
+    (has?.({ feature: "sfu_access" }) ?? false) ||
+    hasFullAccessBySlug(organization?.slug);
   const canUseHd = has?.({ feature: "hd_video" }) ?? false;
   const [streamMode, setStreamMode] = useState<StreamMode>("p2p");
   const [showName, setShowName] = useState("Untitled Show");
   const [viewerCount, setViewerCount] = useState(0);
   const [mirrored, setMirrored] = useState(false);
   const prevSfuStatusRef = useRef<string>("disconnected");
+  const streamStartTimeRef = useRef<number | null>(null);
+  const peakViewerCountRef = useRef(0);
 
-  const isMobilePortrait = useIsMobilePortrait();
+  const isMobile = useIsMobile();
 
   const [globalMessages, setGlobalMessages] = useState<ChatMessage[]>([]);
   const [streamMessages, setStreamMessages] = useState<ChatMessage[]>([]);
@@ -170,6 +176,7 @@ export default function HostPage() {
     onViewerCount: useCallback(
       (count: number) => {
         setViewerCount(count);
+        peakViewerCountRef.current = Math.max(peakViewerCountRef.current, count);
         if (lobby.activeStreamId) {
           lobby.reportViewerCount(lobby.activeStreamId, count);
         }
@@ -262,11 +269,33 @@ export default function HostPage() {
 
   const handleEndStream = useCallback(() => {
     if (lobby.activeStreamId) {
+      const start = streamStartTimeRef.current;
+      const peak = peakViewerCountRef.current;
       sfu.disconnect();
       lobby.endStream(lobby.activeStreamId);
       setViewerCount(0);
       setStreamMessages([]);
-      toast.info("Stream ended");
+      streamStartTimeRef.current = null;
+      peakViewerCountRef.current = 0;
+
+      let summary = "Stream ended";
+      if (start != null) {
+        const durationMs = Date.now() - start;
+        const sec = Math.floor(durationMs / 1000);
+        const min = Math.floor(sec / 60);
+        const hours = Math.floor(min / 60);
+        const durationStr =
+          hours > 0
+            ? `${hours}h ${min % 60}m`
+            : min > 0
+              ? `${min}m`
+              : `${sec}s`;
+        summary += ` · ${durationStr}`;
+      }
+      if (peak > 0) {
+        summary += ` · Peak ${peak} viewer${peak !== 1 ? "s" : ""}`;
+      }
+      toast.success(summary, { duration: 5000 });
     }
   }, [lobby, sfu]);
 
@@ -277,6 +306,16 @@ export default function HostPage() {
       );
     }
   }, [lobby.limitReached, lobby.maxStreams]);
+
+  useEffect(() => {
+    if (lobby.activeStreamId && streamStartTimeRef.current === null) {
+      streamStartTimeRef.current = Date.now();
+    }
+    if (!lobby.activeStreamId) {
+      streamStartTimeRef.current = null;
+      peakViewerCountRef.current = 0;
+    }
+  }, [lobby.activeStreamId]);
 
   const handleCameraSwitch = useCallback(
     async (deviceId: string) => {
@@ -406,14 +445,11 @@ export default function HostPage() {
   if (!hasStreamAccess(subscription, organization?.slug)) {
     return (
       <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center gap-6 px-6">
-        <div className="max-w-md text-center space-y-2">
-          <h2 className="text-lg font-display font-semibold text-foreground">
-            A plan is required to host streams
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Your organization needs an active subscription to host streams. Subscribe to Crew, Production, or Showtime to get started.
-          </p>
-        </div>
+        <ErrorState
+          title="A plan is required to host streams"
+          description="Your organization needs an active subscription to host streams. Subscribe to Crew, Production, or Showtime to get started."
+          showGoHome={false}
+        />
         <Button asChild className="bg-gold text-primary-foreground hover:bg-gold-bright">
           <Link href="/pricing">View plans</Link>
         </Button>
@@ -421,9 +457,9 @@ export default function HostPage() {
     );
   }
 
-  // ── Pre-stream state (chat on left, always available) ──────────────
+  // ── Pre-stream state (chat on right, no left panel) ──────────────
   if (!isStreaming) {
-    const preStreamLeftPanel = (
+    const preStreamRightPanel = (
       <div className="flex flex-col h-full min-h-0">
         <CrewChatPanel
           displayName={displayName}
@@ -431,13 +467,9 @@ export default function HostPage() {
           onGlobalSend={handleSendGlobalMessage}
           globalConnected={globalParty.connectionStatus === "connected"}
         />
-      </div>
-    );
-
-    const preStreamRightPanel = (
-      <>
         {lobby.streams.length > 0 && (
           <>
+            <div className="border-t border-border" />
             <PanelSection title="Active Streams">
               {lobby.streams.map((s) => (
                 <div
@@ -452,7 +484,6 @@ export default function HostPage() {
                 </div>
               ))}
             </PanelSection>
-            <div className="border-t border-border" />
           </>
         )}
         <div className="mt-auto border-t border-border">
@@ -465,12 +496,12 @@ export default function HostPage() {
             </Button>
           </PanelSection>
         </div>
-      </>
+      </div>
     );
 
     return (
       <PanelLayout
-        leftPanel={preStreamLeftPanel}
+        leftPanel={undefined}
         rightPanel={preStreamRightPanel}
         topBarCenter={
           <>
@@ -653,7 +684,7 @@ export default function HostPage() {
     </PanelSection>
   );
 
-  const leftPanel = (
+  const rightPanel = (
     <div className="flex flex-col h-full min-h-0">
       <CrewChatPanel
         displayName={displayName}
@@ -668,56 +699,70 @@ export default function HostPage() {
     </div>
   );
 
-  const rightPanel = (
-    <>
-      <PanelSection title="Stream Mode">
-        <StreamModeSelector
-          mode={streamMode}
-          onModeChange={handleModeChange}
-          sfuStatus={streamMode === "sfu" ? sfu.status : undefined}
-          canUseSfu={canUseSfu}
-        />
-      </PanelSection>
-      <div className="border-t border-border" />
-      {showSettingsBlock}
-      <div className="mt-auto border-t border-border">
-        <PanelSection>
-          <div className="space-y-1">
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full justify-start text-xs"
-              onClick={handleEndStream}
-            >
-              <StopCircle className="h-3.5 w-3.5" />
-              End Stream
-            </Button>
-            <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
-              <Link href="/viewer">
-                <Monitor className="h-3.5 w-3.5" />
-                Switch to Viewer
-              </Link>
-            </Button>
-          </div>
-        </PanelSection>
-      </div>
-    </>
-  );
-
   const bottomPanel = (
-    <div className="flex flex-col h-full overflow-auto">
-      <div className="px-3 py-2 border-b border-border shrink-0">
-        <h3 className="text-xs font-semibold text-foreground">Statistics</h3>
-      </div>
-      <div className="flex-1 min-h-0 p-3 overflow-auto">
-        <StatsPanel webrtcStats={activeStats} />
-      </div>
+    <div className="flex flex-col h-full min-h-0">
+      <Tabs defaultValue="settings" className="flex flex-col h-full min-h-0">
+        <div className="px-3 py-2 border-b border-border shrink-0">
+          <TabsList className="w-full h-8">
+            <TabsTrigger value="settings" className="flex-1 text-xs">
+              Settings
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="flex-1 text-xs">
+              Statistics
+            </TabsTrigger>
+          </TabsList>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <TabsContent value="settings" className="h-full mt-0 data-[state=inactive]:hidden">
+            <div className="overflow-auto">
+              <PanelSection title="Stream Mode">
+                <StreamModeSelector
+                  mode={streamMode}
+                  onModeChange={handleModeChange}
+                  sfuStatus={streamMode === "sfu" ? sfu.status : undefined}
+                  canUseSfu={canUseSfu}
+                />
+              </PanelSection>
+              <div className="border-t border-border" />
+              {showSettingsBlock}
+              <div className="border-t border-border" />
+              <PanelSection>
+                <div className="space-y-1">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                    onClick={handleEndStream}
+                  >
+                    <StopCircle className="h-3.5 w-3.5" />
+                    End Stream
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="w-full justify-start text-xs">
+                    <Link href="/viewer">
+                      <Monitor className="h-3.5 w-3.5" />
+                      Switch to Viewer
+                    </Link>
+                  </Button>
+                </div>
+              </PanelSection>
+            </div>
+          </TabsContent>
+          <TabsContent value="stats" className="h-full mt-0 data-[state=inactive]:hidden">
+            <div className="p-3 overflow-auto">
+              <StatsPanel webrtcStats={activeStats} />
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 
   const topBarCenter = (
     <>
       <ConnectionStatus status={party.connectionStatus} />
+      <span className="text-[11px] text-muted-foreground tabular-nums">
+        {viewerCount + 1} online
+      </span>
       <Badge variant="stat-muted">
         <Eye className="h-3 w-3" />
         {viewerCount}
@@ -749,7 +794,14 @@ export default function HostPage() {
     </>
   );
 
-  if (isMobilePortrait) {
+  const mobileTopBarRight = (
+    <>
+      <LiveClock />
+      <UserButton />
+    </>
+  );
+
+  if (isMobile) {
     return (
       <AppShell
         sidebar={
@@ -793,6 +845,7 @@ export default function HostPage() {
         }
         topBarCenter={topBarCenter}
         topBarRight={topBarRight}
+        mobileTopBarRight={mobileTopBarRight}
         mobileTopBarCenter={mobileTopBarCenter}
       >
         <div className="h-full flex flex-col p-2 overflow-y-auto">
@@ -805,7 +858,7 @@ export default function HostPage() {
                 mirrored={mirrored}
               />
             </div>
-            <div className="shrink-0 flex flex-col min-h-[10rem] max-h-[36vh] rounded-xl border border-border bg-surface-1 overflow-hidden">
+            <div className="shrink-0 flex flex-col min-h-40 max-h-[36vh] rounded-xl border border-border bg-surface-1 overflow-hidden">
               <CrewChatPanel
                 displayName={displayName}
                 globalMessages={globalMessages}
@@ -825,9 +878,9 @@ export default function HostPage() {
 
   return (
     <PanelLayout
-      leftPanel={leftPanel}
+      leftPanel={undefined}
       rightPanel={rightPanel}
-      bottomPanel={isStreaming ? bottomPanel : undefined}
+      bottomPanel={bottomPanel}
       topBarCenter={topBarCenter}
       topBarRight={topBarRight}
       mobileTopBarCenter={mobileTopBarCenter}
