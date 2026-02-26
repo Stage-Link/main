@@ -5,21 +5,15 @@ export function LogoMark({
   size,
   fontFamily = CORMORANT_FONT_NAME,
   noBorder = false,
-  /** Bright variant for favicon — Safari adds white bg when icon is too dark */
-  bright = false,
 }: {
   size: number;
   fontFamily?: string;
   /** Omit border for favicon to avoid white artifact in Safari */
   noBorder?: boolean;
-  /** Gold bg + dark text for PWA/Safari — prevents Safari adding white border */
-  bright?: boolean;
 }) {
   const stroke = Math.max(1, Math.floor(size / 48));
   const fontSize = Math.floor(size * 0.5);
   const dotR = Math.floor(size * 0.08);
-  const bg = bright ? "#C9A227" : "#0C0A09";
-  const textColor = bright ? "#0C0A09" : "#C9A227";
   return (
     <div
       style={{
@@ -28,14 +22,14 @@ export function LogoMark({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: bg,
+        backgroundColor: "#0C0A09",
         borderRadius: Math.floor(size / 6),
         ...(noBorder ? {} : { border: `${stroke}px solid rgba(201, 162, 39, 0.4)` }),
       }}
     >
       <span
         style={{
-          color: textColor,
+          color: "#C9A227",
           fontSize,
           fontWeight: 600,
           fontFamily: `${fontFamily}, serif`,

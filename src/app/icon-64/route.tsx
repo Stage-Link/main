@@ -16,10 +16,10 @@ export async function GET() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#C9A227",
+        backgroundColor: "#0C0A09",
       }}
     >
-      <LogoMark size={size} noBorder bright />
+      <LogoMark size={size} noBorder />
     </div>,
     {
       width: size,

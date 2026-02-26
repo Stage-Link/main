@@ -17,10 +17,10 @@ export default async function Icon() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#C9A227",
+        backgroundColor: "#0C0A09",
       }}
     >
-      <LogoMark size={128} noBorder bright />
+      <LogoMark size={128} noBorder />
     </div>,
     { ...size, fonts }
   );
